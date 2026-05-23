@@ -298,6 +298,8 @@ export default function App() {
   const [xlsxReady, setXlsxReady]   = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated]   = useState(false);
+  const [updating, setUpdating]     = useState(false);
+  const [updateError, setUpdateError] = useState("");
 
   // SheetJS
   useEffect(() => {
@@ -339,6 +341,58 @@ export default function App() {
 
   const today = new Date().toLocaleDateString("es-CL",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
   const todayCap = today.charAt(0).toUpperCase() + today.slice(1);
+
+
+  const handleAutoUpdate = async () => {
+    setUpdating(true);
+    setUpdateError("");
+
+    try {
+      const res = await fetch("/api/update-weather", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const payload = await res.json();
+      const rows = Array.isArray(payload) ? payload : payload.data;
+
+      if (!Array.isArray(rows)) {
+        throw new Error("Respuesta inválida: no viene array de datos");
+      }
+
+      setData(prev => prev.map(d => {
+        const m = rows.find(r => r.ciudad === d.ciudad);
+        if (!m) return d;
+
+        return {
+          ...d,
+          tact:      m.tact      ?? null,
+          tmin:      m.tmin      ?? null,
+          tmax:      m.tmax      ?? null,
+          condicion: m.condicion ?? "",
+          categoria: m.categoria || normalizarCategoria(m.condicion),
+          pp_dia:    m.pp_dia    ?? null,
+          pp_anio:   m.pp_acum   ?? m.pp_anio ?? null,
+          def_sup:   m.def_sup   ?? null,
+          pp_normal: m.pp_normal ?? d.pp_normal ?? null,
+        };
+      }));
+
+      setImported(true);
+      setLastUpdate(new Date());
+      setPronosticoStatus("ok");
+    } catch (error) {
+      console.error(error);
+      setUpdateError("No se pudo actualizar. Revisa /api/update-weather.");
+      setPronosticoStatus("error");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const handleImport = () => {
     setPasteError("");
@@ -469,17 +523,23 @@ export default function App() {
                   <button key={z} onClick={()=>setZona(z)} style={{ padding: isMobile ? "5px 14px" : "3px 12px", borderRadius:20, border:`1px solid ${zona===z ? C.accent : C.border}`, background: zona===z ? C.accentBg : C.surface, color: zona===z ? C.accent : C.muted, fontSize:11, fontWeight:500, cursor:"pointer", fontFamily:"inherit", transition:"all .12s", whiteSpace:"nowrap", flexShrink:0 }}>{z}</button>
                 ))}
               </div>
-              <button onClick={()=>{ setPasteOpen(v=>!v); setPasteError(""); }} style={{ display:"flex", alignItems:"center", gap:5, padding: isMobile ? "7px 12px" : "6px 14px", borderRadius:8, border:`1px solid ${imported ? C.green : C.border}`, background: imported ? C.greenBg : C.surface, color: imported ? C.green : C.muted, fontSize:11, fontWeight:500, cursor:"pointer", fontFamily:"inherit", transition:"all .14s", flexShrink:0, marginLeft:8 }}>
+              <button onClick={handleAutoUpdate} disabled={updating} style={{ display:"flex", alignItems:"center", gap:5, padding: isMobile ? "7px 12px" : "6px 14px", borderRadius:8, border:`1px solid ${imported ? C.green : C.border}`, background: imported ? C.greenBg : C.surface, color: imported ? C.green : C.muted, fontSize:11, fontWeight:500, cursor: updating ? "wait" : "pointer", opacity: updating ? 0.75 : 1, fontFamily:"inherit", transition:"all .14s", flexShrink:0, marginLeft:8 }}>
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                {imported ? "✓" : isMobile ? "Importar" : "Importar datos"}
+                {updating ? "Actualizando…" : imported ? "✓ Actualizado" : "Actualizar"}
               </button>
             </div>
           </div>
 
+          {updateError && (
+            <div style={{ background:C.redBg, color:C.red, border:`1px solid #FECACA`, borderRadius:10, padding:"8px 12px", fontSize:12, marginBottom:12 }}>
+              {updateError}
+            </div>
+          )}
+
           {/* Panel importar */}
           {pasteOpen && (
             <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:"20px 24px", marginBottom:18, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <p style={{ fontSize:12, fontWeight:600, color:C.text, marginBottom:4 }}>Importar datos actualizados</p>
+              <p style={{ fontSize:12, fontWeight:600, color:C.text, marginBottom:4 }}>Actualizar datos meteorológicos</p>
               <p style={{ fontSize:11, color:C.muted, marginBottom:12 }}>
                 Acepta dos formatos: <strong>JSON de ChatGPT</strong> (con campos ciudad, tact, tmin, tmax, condicion, categoria, pp_dia, pp_acum, def_sup) o <strong>tabla del boletín MeteoChile</strong> copiada directamente.
               </p>
@@ -523,6 +583,7 @@ export default function App() {
                   {rows.map((d, i) => {
                     const sup = d.def_sup !== null && d.def_sup >= 0;
                     return (
+                      <>
                       {/* Desktop row */}
                       {!isMobile && (
                         <div key={d.ciudad} style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", alignItems:"center", padding:"11px 18px", gap:8, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none", transition:"background .1s" }}
@@ -577,6 +638,7 @@ export default function App() {
                           </div>
                         </div>
                       )}
+                      </>
                     );
                   })}
                 </div>
