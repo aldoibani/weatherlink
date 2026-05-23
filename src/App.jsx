@@ -1,5 +1,16 @@
 import { useState, useEffect } from "react";
 
+// ── Responsive hook ──────────────────────────────────────────────────────────
+function useIsMobile() {
+  const [mobile, setMobile] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 640);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return mobile;
+}
+
 const GoogleFonts = () => (
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
 );
@@ -273,6 +284,7 @@ const fmtN = (v, u="") => v === null || v === undefined ? "—" : `${v}${u}`;
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
+  const isMobile = useIsMobile();
   const [tab, setTab]               = useState("condicion");
   const [zona, setZona]             = useState("Todas");
   const [data, setData]             = useState(DEFAULT_DATA);
@@ -394,45 +406,74 @@ export default function App() {
       <GoogleFonts />
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header style={{ background:C.surface, borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, zIndex:20, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 28px", height:58 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:9 }}>
-          <div style={{ width:30, height:30, borderRadius:8, background:"linear-gradient(135deg,#3B82F6,#1D4ED8)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-              <path d="M12 3v1M12 20v1M3 12H2M22 12h-1M5.6 5.6l-.7-.7M18.4 5.6l.7-.7M18.4 18.4l.7.7M5.6 18.4l-.7.7" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
-              <circle cx="12" cy="12" r="4" stroke="#fff" strokeWidth="2"/>
-            </svg>
+      <header style={{ background:C.surface, borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, zIndex:20, padding: isMobile ? "0 16px" : "0 28px" }}>
+        {/* Desktop header */}
+        {!isMobile && (
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", height:58 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+              <div style={{ width:30, height:30, borderRadius:8, background:"linear-gradient(135deg,#3B82F6,#1D4ED8)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 3v1M12 20v1M3 12H2M22 12h-1M5.6 5.6l-.7-.7M18.4 5.6l.7-.7M18.4 18.4l.7.7M5.6 18.4l-.7.7" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="12" cy="12" r="4" stroke="#fff" strokeWidth="2"/>
+                </svg>
+              </div>
+              <span style={{ fontWeight:600, fontSize:14, letterSpacing:"-.3px" }}>WeatherLink</span>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:C.muted }}>
+              <span style={{ width:6, height:6, borderRadius:"50%", background:statusColor, display:"inline-block", transition:"background .3s" }}/>
+              {statusLabel}
+            </div>
+            <nav style={{ display:"flex", background:"#F0F2F5", borderRadius:10, padding:3, gap:2 }}>
+              {[["condicion","Condición actual"],["pronostico","Generar pronóstico"]].map(([id,lbl])=>(
+                <button key={id} onClick={()=>setTab(id)} style={{ padding:"5px 16px", borderRadius:7, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:12, fontWeight:500, background: tab===id ? C.surface : "transparent", color: tab===id ? C.accent : C.muted, boxShadow: tab===id ? "0 1px 3px rgba(0,0,0,0.07)" : "none", transition:"all .14s" }}>{lbl}</button>
+              ))}
+            </nav>
           </div>
-          <span style={{ fontWeight:600, fontSize:14, letterSpacing:"-.3px" }}>WeatherLink</span>
-        </div>
-
-        <div style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:C.muted }}>
-          <span style={{ width:6, height:6, borderRadius:"50%", background:statusColor, display:"inline-block", transition:"background .3s" }}/>
-          {statusLabel}
-        </div>
-
-        <nav style={{ display:"flex", background:"#F0F2F5", borderRadius:10, padding:3, gap:2 }}>
-          {[["condicion","Condición actual"],["pronostico","Generar pronóstico"]].map(([id,lbl])=>(
-            <button key={id} onClick={()=>setTab(id)} style={{ padding:"5px 16px", borderRadius:7, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:12, fontWeight:500, background: tab===id ? C.surface : "transparent", color: tab===id ? C.accent : C.muted, boxShadow: tab===id ? "0 1px 3px rgba(0,0,0,0.07)" : "none", transition:"all .14s" }}>{lbl}</button>
-          ))}
-        </nav>
+        )}
+        {/* Mobile header */}
+        {isMobile && (
+          <div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", height:52 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ width:28, height:28, borderRadius:8, background:"linear-gradient(135deg,#3B82F6,#1D4ED8)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 3v1M12 20v1M3 12H2M22 12h-1M5.6 5.6l-.7-.7M18.4 5.6l.7-.7M18.4 18.4l.7.7M5.6 18.4l-.7.7" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+                    <circle cx="12" cy="12" r="4" stroke="#fff" strokeWidth="2"/>
+                  </svg>
+                </div>
+                <span style={{ fontWeight:600, fontSize:14, letterSpacing:"-.3px" }}>WeatherLink</span>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:C.muted }}>
+                <span style={{ width:5, height:5, borderRadius:"50%", background:statusColor, display:"inline-block" }}/>
+                {pronosticoStatus === "ok" ? lastUpdate.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"}) : pronosticoStatus === "loading" ? "…" : "base"}
+              </div>
+            </div>
+            <div style={{ display:"flex", background:"#F0F2F5", borderRadius:10, padding:3, gap:2, marginBottom:10 }}>
+              {[["condicion","Condición actual"],["pronostico","Pronóstico"]].map(([id,lbl])=>(
+                <button key={id} onClick={()=>setTab(id)} style={{ flex:1, padding:"7px 8px", borderRadius:7, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:12, fontWeight:500, background: tab===id ? C.surface : "transparent", color: tab===id ? C.accent : C.muted, boxShadow: tab===id ? "0 1px 3px rgba(0,0,0,0.07)" : "none", transition:"all .14s" }}>{lbl}</button>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* ── Tab: Condición actual ───────────────────────────────────────────── */}
       {tab === "condicion" && (
-        <main style={{ padding:"22px 28px", maxWidth:1300, margin:"0 auto" }}>
+        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth:1300, margin:"0 auto" }}>
 
           {/* Toolbar */}
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <span style={{ fontSize:10.5, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".07em", marginRight:2 }}>Zona</span>
-              {["Todas",...ZONAS].map(z=>(
-                <button key={z} onClick={()=>setZona(z)} style={{ padding:"3px 12px", borderRadius:20, border:`1px solid ${zona===z ? C.accent : C.border}`, background: zona===z ? C.accentBg : C.surface, color: zona===z ? C.accent : C.muted, fontSize:11, fontWeight:500, cursor:"pointer", fontFamily:"inherit", transition:"all .12s" }}>{z}</button>
-              ))}
+          <div style={{ marginBottom: isMobile ? 12 : 18 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch", scrollbarWidth:"none" }}>
+                {["Todas",...ZONAS].map(z=>(
+                  <button key={z} onClick={()=>setZona(z)} style={{ padding: isMobile ? "5px 14px" : "3px 12px", borderRadius:20, border:`1px solid ${zona===z ? C.accent : C.border}`, background: zona===z ? C.accentBg : C.surface, color: zona===z ? C.accent : C.muted, fontSize:11, fontWeight:500, cursor:"pointer", fontFamily:"inherit", transition:"all .12s", whiteSpace:"nowrap", flexShrink:0 }}>{z}</button>
+                ))}
+              </div>
+              <button onClick={()=>{ setPasteOpen(v=>!v); setPasteError(""); }} style={{ display:"flex", alignItems:"center", gap:5, padding: isMobile ? "7px 12px" : "6px 14px", borderRadius:8, border:`1px solid ${imported ? C.green : C.border}`, background: imported ? C.greenBg : C.surface, color: imported ? C.green : C.muted, fontSize:11, fontWeight:500, cursor:"pointer", fontFamily:"inherit", transition:"all .14s", flexShrink:0, marginLeft:8 }}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                {imported ? "✓" : isMobile ? "Importar" : "Importar datos"}
+              </button>
             </div>
-            <button onClick={()=>{ setPasteOpen(v=>!v); setPasteError(""); }} style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", borderRadius:8, border:`1px solid ${imported ? C.green : C.border}`, background: imported ? C.greenBg : C.surface, color: imported ? C.green : C.muted, fontSize:11, fontWeight:500, cursor:"pointer", fontFamily:"inherit", transition:"all .14s" }}>
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-              {imported ? "Datos importados ✓" : "Importar datos"}
-            </button>
           </div>
 
           {/* Panel importar */}
@@ -455,12 +496,21 @@ export default function App() {
           )}
 
           {/* Encabezados */}
-          <div style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", padding:"0 18px 8px", gap:8, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
-            <span>Ciudad</span><span style={{textAlign:"center"}}>Actual</span>
-            <span style={{textAlign:"center"}}>Mín</span><span style={{textAlign:"center"}}>Máx</span>
-            <span style={{textAlign:"center"}}>PP hoy</span><span style={{textAlign:"center"}}>PP año</span>
-            <span style={{textAlign:"center"}}>vs. Normal</span>
-          </div>
+          {!isMobile && (
+            <div style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", padding:"0 18px 8px", gap:8, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
+              <span>Ciudad</span><span style={{textAlign:"center"}}>Actual</span>
+              <span style={{textAlign:"center"}}>Mín</span><span style={{textAlign:"center"}}>Máx</span>
+              <span style={{textAlign:"center"}}>PP hoy</span><span style={{textAlign:"center"}}>PP año</span>
+              <span style={{textAlign:"center"}}>vs. Normal</span>
+            </div>
+          )}
+          {isMobile && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 90px 90px", padding:"0 14px 8px", gap:6, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
+              <span>Ciudad</span><span style={{textAlign:"center"}}>Actual</span>
+              <span style={{textAlign:"center"}}>Mín / Máx</span>
+              <span style={{textAlign:"center"}}>vs. Normal</span>
+            </div>
+          )}
 
           {/* Filas por zona */}
           {zones.map(z => {
@@ -473,32 +523,60 @@ export default function App() {
                   {rows.map((d, i) => {
                     const sup = d.def_sup !== null && d.def_sup >= 0;
                     return (
-                      <div key={d.ciudad} style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", alignItems:"center", padding:"11px 18px", gap:8, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none", transition:"background .1s" }}
-                        onMouseEnter={e=>e.currentTarget.style.background="#FAFBFC"}
-                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}
-                      >
-                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                          <Icon cat={d.categoria} size={26}/>
-                          <span style={{ fontWeight:500, fontSize:13, letterSpacing:"-.15px" }}>{d.ciudad}</span>
+                      {/* Desktop row */}
+                      {!isMobile && (
+                        <div key={d.ciudad} style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", alignItems:"center", padding:"11px 18px", gap:8, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none", transition:"background .1s" }}
+                          onMouseEnter={e=>e.currentTarget.style.background="#FAFBFC"}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                        >
+                          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <Icon cat={d.categoria} size={26}/>
+                            <span style={{ fontWeight:500, fontSize:13, letterSpacing:"-.15px" }}>{d.ciudad}</span>
+                          </div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:14, fontWeight:600, color:C.text }}>
+                            {d.tact !== null ? `${d.tact}°` : <span style={{ fontSize:11, color:C.border }}>—</span>}
+                          </div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:13, fontWeight:500, color:"#60A5FA" }}>{fmtT(d.tmin)}</div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:13, fontWeight:500, color:C.orange }}>{fmtT(d.tmax)}</div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:12, color: d.pp_dia > 0 ? C.blue : C.muted }}>
+                            {d.pp_dia === null ? "—" : d.pp_dia > 0 ? `${d.pp_dia} mm` : "0 mm"}
+                          </div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:12, color:"#475569" }}>{fmtN(d.pp_anio," mm")}</div>
+                          <div style={{ textAlign:"center" }}>
+                            {d.def_sup === null
+                              ? <span style={{ fontSize:11, color:C.border }}>—</span>
+                              : <span style={{ display:"inline-flex", alignItems:"center", gap:3, fontSize:11, fontWeight:600, ...mono, color: sup?C.green:C.red, background: sup?C.greenBg:C.redBg, borderRadius:20, padding:"2px 9px" }}>
+                                  {sup?"▲":"▼"} {Math.abs(d.def_sup)}%
+                                </span>
+                            }
+                          </div>
                         </div>
-                        <div style={{ textAlign:"center", ...mono, fontSize:14, fontWeight:600, color:C.text }}>
-                          {d.tact !== null ? `${d.tact}°` : <span style={{ fontSize:11, color:C.border }}>—</span>}
+                      )}
+                      {/* Mobile row */}
+                      {isMobile && (
+                        <div key={d.ciudad+"m"} style={{ display:"grid", gridTemplateColumns:"1fr 60px 90px 90px", alignItems:"center", padding:"12px 14px", gap:6, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+                            <Icon cat={d.categoria} size={24}/>
+                            <span style={{ fontWeight:500, fontSize:13, letterSpacing:"-.15px" }}>{d.ciudad}</span>
+                          </div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:15, fontWeight:600, color:C.text }}>
+                            {d.tact !== null ? `${d.tact}°` : <span style={{ fontSize:11, color:C.border }}>—</span>}
+                          </div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:12 }}>
+                            <span style={{ color:"#60A5FA" }}>{fmtT(d.tmin)}</span>
+                            <span style={{ color:C.border, margin:"0 3px" }}>/</span>
+                            <span style={{ color:C.orange }}>{fmtT(d.tmax)}</span>
+                          </div>
+                          <div style={{ textAlign:"center" }}>
+                            {d.def_sup === null
+                              ? <span style={{ fontSize:11, color:C.border }}>—</span>
+                              : <span style={{ display:"inline-flex", alignItems:"center", gap:2, fontSize:11, fontWeight:600, ...mono, color: sup?C.green:C.red, background: sup?C.greenBg:C.redBg, borderRadius:20, padding:"2px 7px" }}>
+                                  {sup?"▲":"▼"} {Math.abs(d.def_sup)}%
+                                </span>
+                            }
+                          </div>
                         </div>
-                        <div style={{ textAlign:"center", ...mono, fontSize:13, fontWeight:500, color:"#60A5FA" }}>{fmtT(d.tmin)}</div>
-                        <div style={{ textAlign:"center", ...mono, fontSize:13, fontWeight:500, color:C.orange }}>{fmtT(d.tmax)}</div>
-                        <div style={{ textAlign:"center", ...mono, fontSize:12, color: d.pp_dia > 0 ? C.blue : C.muted }}>
-                          {d.pp_dia === null ? "—" : d.pp_dia > 0 ? `${d.pp_dia} mm` : "0 mm"}
-                        </div>
-                        <div style={{ textAlign:"center", ...mono, fontSize:12, color:"#475569" }}>{fmtN(d.pp_anio," mm")}</div>
-                        <div style={{ textAlign:"center" }}>
-                          {d.def_sup === null
-                            ? <span style={{ fontSize:11, color:C.border }}>—</span>
-                            : <span style={{ display:"inline-flex", alignItems:"center", gap:3, fontSize:11, fontWeight:600, ...mono, color: sup?C.green:C.red, background: sup?C.greenBg:C.redBg, borderRadius:20, padding:"2px 9px" }}>
-                                {sup?"▲":"▼"} {Math.abs(d.def_sup)}%
-                              </span>
-                          }
-                        </div>
-                      </div>
+                      )}
                     );
                   })}
                 </div>
