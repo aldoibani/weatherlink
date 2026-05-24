@@ -250,25 +250,104 @@ const SANTIAGO_5 = [
 
 const ZONAS = ["Norte","Centro","Sur","Insular"];
 
-function generateExcel(data, santiagoForecast = SANTIAGO_5) {
+function excelConcepto(row = {}) {
+  return row.condicion || row.categoria || "";
+}
+
+function generateExcel(data, santiagoForecast = SANTIAGO_5, selectedExtra = []) {
   const XLSX = window.XLSX;
   if (!XLSX) return;
+
   const wb = XLSX.utils.book_new();
-  const rows = [["Zona","Ciudad","Mínima","Máxima","Condición","Categoría"]];
+
+  const title = [["PRONÓSTICO WEATHERLINK"]];
+  const nationalHeader = [["CIUDAD", "CONCEPTO", "MIN", "MAX"]];
+  const nationalRows = [];
+
   ZONAS.forEach(zona => {
-    data.filter(d=>d.zona===zona).forEach((d,i)=>{
-      rows.push([i===0?zona:"", d.ciudad, d.tmin, d.tmax, d.condicion, d.categoria]);
+    const zoneRows = data.filter(d => d.zona === zona);
+    if (!zoneRows.length) return;
+    nationalRows.push([`ZONA ${zona.toUpperCase()}`, "", "", ""]);
+    zoneRows.forEach(d => {
+      nationalRows.push([
+        d.ciudad,
+        excelConcepto(d),
+        d.tmin ?? null,
+        d.tmax ?? null,
+      ]);
     });
+    nationalRows.push(["", "", "", ""]);
   });
-  const ws1 = XLSX.utils.aoa_to_sheet(rows);
-  ws1["!cols"] = [{wch:16},{wch:22},{wch:12},{wch:12},{wch:52},{wch:28}];
-  XLSX.utils.book_append_sheet(wb, ws1, "Pronóstico");
-  const rows2 = [["Ciudad","Día","Mínima","Máxima","Condición","Categoría"],
-    ...santiagoForecast.slice(0,5).map(d=>["Santiago",d.dia,d.tmin,d.tmax,d.condicion,d.categoria])];
-  const ws2 = XLSX.utils.aoa_to_sheet(rows2);
-  ws2["!cols"] = [{wch:14},{wch:16},{wch:12},{wch:12},{wch:40},{wch:24}];
-  XLSX.utils.book_append_sheet(wb, ws2, "Santiago 5 días");
-  XLSX.writeFile(wb, "Pronostico_WeatherLink.xlsx");
+
+  const santiagoTitle = [["SANTIAGO · PRONÓSTICO EXTENDIDO 5 DÍAS"]];
+  const santiagoHeader = [["DÍA", "CONCEPTO", "MIN", "MAX"]];
+  const santiagoRows = santiagoForecast.slice(0, 5).map(d => [
+    d.dia,
+    excelConcepto(d),
+    d.tmin ?? null,
+    d.tmax ?? null,
+  ]);
+
+  const extraTitle = [["CIUDADES EXTRA"]];
+  const extraHeader = [["CIUDAD", "CONCEPTO", "MIN", "MAX"]];
+  const extraRows = selectedExtra.slice(0, 5).map(d => [
+    d.ciudad,
+    excelConcepto(d),
+    d.tmin ?? null,
+    d.tmax ?? null,
+  ]);
+
+  const rows = [
+    ...title,
+    [""],
+    ...nationalHeader,
+    ...nationalRows,
+    [""],
+    ...santiagoTitle,
+    [""],
+    ...santiagoHeader,
+    ...santiagoRows,
+    [""],
+    ...extraTitle,
+    [""],
+    ...extraHeader,
+    ...(extraRows.length ? extraRows : [["", "", "", ""]]),
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [{ wch: 24 }, { wch: 52 }, { wch: 10 }, { wch: 10 }];
+  ws["!freeze"] = { xSplit: 0, ySplit: 3 };
+
+  // Estilos básicos. Algunas versiones de SheetJS Community no preservan todos los estilos,
+  // pero sí deja una estructura limpia, editable y con anchos correctos.
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let Cc = range.s.c; Cc <= range.e.c; ++Cc) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: Cc });
+      if (!ws[addr]) continue;
+      ws[addr].s = {
+        font: { name: "Arial", sz: 11 },
+        alignment: { vertical: "center", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: "E5E7EB" } },
+          bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+          left: { style: "thin", color: { rgb: "E5E7EB" } },
+          right: { style: "thin", color: { rgb: "E5E7EB" } },
+        },
+      };
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, "Pronóstico");
+  XLSX.writeFile(wb, "Pronostico_WeatherLink_Allie.xlsx");
+}
+
+function normalizeSearchText(s = "") {
+  return String(s)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -313,6 +392,9 @@ export default function App() {
   const [zona, setZona]             = useState("Todas");
   const [data, setData]             = useState(DEFAULT_DATA);
   const [santiagoForecast, setSantiagoForecast] = useState(SANTIAGO_5);
+  const [extraOptions, setExtraOptions] = useState([]);
+  const [extraSearch, setExtraSearch] = useState("");
+  const [selectedExtra, setSelectedExtra] = useState([]);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [pronosticoStatus, setPronosticoStatus] = useState("idle"); // idle|loading|ok|error
   const [pasteOpen, setPasteOpen]   = useState(false);
@@ -384,6 +466,9 @@ export default function App() {
 
       const payload = await res.json();
       setSantiagoForecast(pickSantiagoForecast(payload, SANTIAGO_5));
+      if (Array.isArray(payload?.extra_forecast_options)) {
+        setExtraOptions(payload.extra_forecast_options);
+      }
       const rows = Array.isArray(payload) ? payload : (payload.data || payload.regiones || []);
 
       if (!Array.isArray(rows)) {
@@ -476,8 +561,31 @@ export default function App() {
 
   const handleGenerate = () => {
     setGenerating(true);
-    setTimeout(() => { generateExcel(data, santiagoForecast); setGenerating(false); setGenerated(true); }, 900);
+    setTimeout(() => { generateExcel(data.filter(d => d.zona !== "Santiago"), santiagoForecast, selectedExtra); setGenerating(false); setGenerated(true); }, 900);
   };
+
+  const addExtraCity = (city) => {
+    if (!city || selectedExtra.length >= 5) return;
+    const exists = selectedExtra.some(x => x.indice === city.indice || x.ciudad === city.ciudad);
+    if (exists) return;
+    setSelectedExtra(prev => [...prev, city].slice(0, 5));
+    setExtraSearch("");
+    setGenerated(false);
+  };
+
+  const removeExtraCity = (city) => {
+    setSelectedExtra(prev => prev.filter(x => x.indice !== city.indice && x.ciudad !== city.ciudad));
+    setGenerated(false);
+  };
+
+  const extraSuggestions = extraOptions
+    .filter(o => !selectedExtra.some(s => s.indice === o.indice || s.ciudad === o.ciudad))
+    .filter(o => {
+      const q = normalizeSearchText(extraSearch);
+      if (!q) return false;
+      return normalizeSearchText(o.ciudad).includes(q) || normalizeSearchText(o.indice).includes(q);
+    })
+    .slice(0, 8);
 
   const filtered = zona === "Todas" ? data : data.filter(d => d.zona === zona);
   const zones    = zona === "Todas" ? ZONAS : [zona];
@@ -784,11 +892,11 @@ export default function App() {
 
       {/* ── Tab: Generar pronóstico ─────────────────────────────────────────── */}
       {tab === "pronostico" && (
-        <main style={{ padding:"40px 28px", maxWidth:660, margin:"0 auto" }}>
+        <main style={{ padding:"40px 28px", maxWidth:760, margin:"0 auto" }}>
           <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
             <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:14 }}>Contenido del archivo</div>
-            <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico por zona · {data.filter(d=>d.zona!=="Santiago").length} ciudades</div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:22 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico nacional · {data.filter(d=>d.zona!=="Santiago").length} ciudades</div>
+            <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap:8, marginBottom:22 }}>
               {ZONAS.map(z=>(
                 <div key={z} style={{ background:C.bg, borderRadius:10, padding:"10px 14px", border:`1px solid ${C.border}` }}>
                   <div style={{ fontSize:9.5, color:C.muted, textTransform:"uppercase", letterSpacing:".07em" }}>Zona {z}</div>
@@ -797,26 +905,82 @@ export default function App() {
                 </div>
               ))}
             </div>
+
             <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico extendido Santiago · 5 días</div>
-            <div style={{ display:"flex", gap:7 }}>
-              {SANTIAGO_5.map((d,i)=>(
+            <div style={{ display:"flex", gap:7, marginBottom:4 }}>
+              {santiagoForecast.slice(0,5).map((d,i)=>(
                 <div key={i} style={{ flex:1, background:C.bg, borderRadius:10, padding:"10px 8px", border:`1px solid ${C.border}`, textAlign:"center" }}>
-                  <div style={{ fontSize:9.5, color:C.muted, marginBottom:6 }}>{d.dia.split(" ")[0]}</div>
+                  <div style={{ fontSize:9.5, color:C.muted, marginBottom:6 }}>{shortDay(d.dia)}</div>
                   <div style={{ display:"flex", justifyContent:"center" }}><Icon cat={d.categoria} size={22}/></div>
                   <div style={{ fontSize:11, ...mono, marginTop:5 }}>
-                    <span style={{color:"#60A5FA"}}>{d.tmin}°</span>
+                    <span style={{color:"#60A5FA"}}>{fmtT(d.tmin)}</span>
                     <span style={{color:C.border, margin:"0 2px"}}>/</span>
-                    <span style={{color:C.orange}}>{d.tmax}°</span>
+                    <span style={{color:C.orange}}>{fmtT(d.tmax)}</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"20px 24px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:10 }}>
+              <div>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:4 }}>Ciudades extra</div>
+                <div style={{ fontSize:12, fontWeight:600, color:"#374151" }}>Selecciona hasta 5 ciudades del pronóstico MeteoChile</div>
+              </div>
+              <div style={{ fontSize:11, color:selectedExtra.length >= 5 ? C.green : C.muted, fontWeight:600 }}>
+                {selectedExtra.length}/5
+              </div>
+            </div>
+
+            <div style={{ position:"relative", marginBottom:12 }}>
+              <input
+                value={extraSearch}
+                onChange={e=>setExtraSearch(e.target.value)}
+                placeholder={extraOptions.length ? "Escribe una ciudad…" : "Actualiza primero para cargar las ciudades…"}
+                disabled={selectedExtra.length >= 5}
+                style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontFamily:"inherit", fontSize:12, color:C.text, outline:"none", background:selectedExtra.length >= 5 ? "#F8FAFC" : "#fff" }}
+              />
+              {extraSearch && extraSuggestions.length > 0 && selectedExtra.length < 5 && (
+                <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, right:0, background:C.surface, border:`1px solid ${C.border}`, borderRadius:10, overflow:"hidden", boxShadow:"0 8px 22px rgba(15,23,42,.10)", zIndex:30 }}>
+                  {extraSuggestions.map(city=>(
+                    <button key={city.indice || city.ciudad} onClick={()=>addExtraCity(city)} style={{ width:"100%", border:"none", background:"transparent", padding:"10px 12px", textAlign:"left", cursor:"pointer", fontFamily:"inherit", borderBottom:`1px solid ${C.border}` }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:C.text }}>{city.ciudad}</div>
+                      <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>{city.condicion || city.categoria || "Pronóstico MeteoChile"} · {fmtT(city.tmin)} / {fmtT(city.tmax)}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedExtra.length > 0 ? (
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {selectedExtra.map(city=>(
+                  <div key={city.indice || city.ciudad} style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px 32px", alignItems:"center", gap:8, background:C.bg, border:`1px solid ${C.border}`, borderRadius:10, padding:"9px 10px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                      <Icon cat={city.categoria} size={22}/>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:12, fontWeight:600, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{city.ciudad}</div>
+                        <div style={{ fontSize:10, color:C.muted, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{city.condicion || city.categoria || "—"}</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign:"center", ...mono, fontSize:12, color:"#60A5FA" }}>{fmtT(city.tmin)}</div>
+                    <div style={{ textAlign:"center", ...mono, fontSize:12, color:C.orange }}>{fmtT(city.tmax)}</div>
+                    <button onClick={()=>removeExtraCity(city)} style={{ border:"none", background:"transparent", color:C.muted, cursor:"pointer", fontSize:18, lineHeight:1 }}>×</button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ background:C.bg, border:`1px dashed ${C.border}`, borderRadius:10, padding:"14px 12px", fontSize:11, color:C.muted, textAlign:"center" }}>
+                Las ciudades extra aparecerán al final del Excel. Usa el buscador para agregarlas.
+              </div>
+            )}
+          </div>
+
           <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"18px 28px", marginBottom:22, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:10 }}>Columnas incluidas</div>
+            <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:10 }}>Excel editable</div>
             <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-              {["Zona","Ciudad","Mínima (°C)","Máxima (°C)","Condición","Categoría"].map(c=>(
+              {["Pronóstico nacional", "Santiago 5 días", "Ciudades extra", "CIUDAD", "CONCEPTO", "MIN", "MAX"].map(c=>(
                 <span key={c} style={{ fontSize:11, fontWeight:500, color:"#374151", background:C.bg, borderRadius:6, padding:"3px 11px", border:`1px solid ${C.border}` }}>{c}</span>
               ))}
             </div>
@@ -842,7 +1006,7 @@ export default function App() {
             </div>
           )}
           <p style={{ textAlign:"center", fontSize:11, color:C.muted, marginTop:14 }}>
-            {data.filter(d=>d.zona!=="Santiago").length} ciudades · pronóstico extendido Santiago 5 días · formato .xlsx
+            {data.filter(d=>d.zona!=="Santiago").length} ciudades · Santiago 5 días · {selectedExtra.length} ciudades extra · formato .xlsx
           </p>
         </main>
       )}
