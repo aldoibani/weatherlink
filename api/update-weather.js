@@ -315,23 +315,21 @@ function parseEmaTemperature(html) {
 }
 
 function parseEmaWindMax(html) {
-  const text = normalizeText(html.replace(/<[^>]+>/g, " "));
-  const patterns = [
-    /Velocidad Máxima del Viento.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Velocidad Maxima del Viento.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Intensidad Máxima del Viento.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Intensidad Maxima del Viento.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Viento Máximo.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Viento Maximo.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Racha Máxima.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Racha Maxima.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Ráfaga Máxima.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Rafaga Maxima.*?([\-]?\d+(?:[,.]\d+)?)/i,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (m) return toNumber(m[1]);
-  }
+  const text = stripAccents(normalizeText(html.replace(/<[^>]+>/g, " "))).toLowerCase();
+
+  // Formato real MeteoChile:
+  // Viento Máximo
+  // Hoy 360/10 (07:22) 360/18 (07:22)
+  // Primera dupla: °/kt — Segunda dupla: °/kmh
+  // Retornamos el segundo valor de la segunda dupla (kmh)
+  const hoyMatch = text.match(
+    /viento maximo[\s\S]*?hoy\s+(\d+)\/(\d+)[^\d]+(\d+)\/(\d+)/
+  );
+  if (hoyMatch) return toNumber(hoyMatch[4]);
+
+  const fallback = text.match(/hoy\s+\d+\/\d+[^\d]+\d+\/(\d+)/);
+  if (fallback) return toNumber(fallback[1]);
+
   return null;
 }
 
