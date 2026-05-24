@@ -9,16 +9,13 @@ const BOLETIN_URL =
 const EMA_BASE =
   "https://climatologia.meteochile.gob.cl/application/diariob/visorDeDatosEma/";
 
-const DIRECTEMAR_VALPO =
-  "https://serviciosonline.directemar.cl/meteomapa/fichaEstacion/VALPARAISO";
-
 const SANTIAGO_STATIONS = [
   {
     key: "quinta_normal",
     ciudad: "Quinta Normal",
     label: "Quinta Normal",
     zona: "Santiago",
-    ema: "330021",
+    ema: "330020",
     indices: ["stgo", "santiago"],
   },
   {
@@ -26,7 +23,7 @@ const SANTIAGO_STATIONS = [
     ciudad: "Pudahuel",
     label: "Pudahuel",
     zona: "Santiago",
-    ema: "330020",
+    ema: "330021",
     indices: ["stgo", "santiago"],
   },
 ];
@@ -67,7 +64,6 @@ const BOLETIN_STATIONS = [
   ["panguilemo", "Talca"],
   ["talca", "Talca"],
   ["general bernardo", "Chillán"],
-  ["bernardo o", "Chillán"],
   ["chillan", "Chillán"],
   ["chillán", "Chillán"],
   ["carriel", "Concepción"],
@@ -83,17 +79,13 @@ const BOLETIN_STATIONS = [
   ["carlos ibanez", "Punta Arenas"],
   ["carlos ibañez", "Punta Arenas"],
   ["robinson crusoe", "Juan Fernández"],
-  ["juan fernández, estación meteorológica", "Juan Fernández"],
-  ["juan fernandez, estacion meteorologica", "Juan Fernández"],
-  ["juan fernã¡ndez", "Juan Fernández"],
-  ["juan fernandez", "Juan Fernández"],
   ["juan fernández", "Juan Fernández"],
+  ["juan fernandez", "Juan Fernández"],
   ["juan fern", "Juan Fernández"],
   ["mataveri isla de pascua ap", "Rapa Nui"],
   ["mataveri isla de pascua", "Rapa Nui"],
   ["isla de pascua ap", "Rapa Nui"],
   ["mataveri", "Rapa Nui"],
-  ["isla de pascua", "Rapa Nui"],
   ["pascua", "Rapa Nui"],
   ["frei montalva", "Rey Jorge"],
   ["marsh", "Rey Jorge"],
@@ -194,8 +186,7 @@ function parsePronostico(jsText) {
     const indice = block.match(/indice\s*:\s*["']([^"']+)["']/)?.[1];
     if (!indice) continue;
 
-    const tempBlock =
-      block.match(/temperatura\s*:\s*\[([\s\S]*?)\]/)?.[1] || "";
+    const tempBlock = block.match(/temperatura\s*:\s*\[([\s\S]*?)\]/)?.[1] || "";
     const tempItems = [...tempBlock.matchAll(/["']([^"']*)["']/g)].map((m) =>
       normalizeText(m[1])
     );
@@ -212,9 +203,7 @@ function parsePronostico(jsText) {
     let arrM;
     while ((arrM = arrayRe.exec(textoOuter)) !== null) {
       textoArrays.push(
-        [...arrM[1].matchAll(/["']([^"']*)["']/g)].map((m) =>
-          normalizeText(m[1])
-        )
+        [...arrM[1].matchAll(/["']([^"']*)["']/g)].map((m) => normalizeText(m[1]))
       );
     }
 
@@ -252,19 +241,6 @@ function parseEmaTemperature(html) {
   const patterns = [
     /Temperatura del Aire en °C\s*([\-]?\d+(?:[,.]\d+)?)/i,
     /Temperatura del Aire.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Temperatura.*?([\-]?\d+(?:[,.]\d+)?)\s*°?\s*C/i,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (m) return toNumber(m[1]);
-  }
-  return null;
-}
-
-function parseDirectemarTemperature(html) {
-  const text = normalizeText(html.replace(/<[^>]+>/g, " "));
-  const patterns = [
-    /Temperatura\s+del\s+Aire.*?([\-]?\d+(?:[,.]\d+)?)/i,
     /Temperatura.*?([\-]?\d+(?:[,.]\d+)?)\s*°?\s*C/i,
   ];
   for (const p of patterns) {
@@ -364,44 +340,18 @@ async function buildWeatherJson() {
     SANTIAGO_STATIONS.map((station) => buildStationRow(station, pronostico, boletin))
   );
 
-  const santiago = {
-    quinta_normal: santiagoStations.find((x) => x.ciudad === "Quinta Normal") || null,
-    pudahuel:      santiagoStations.find((x) => x.ciudad === "Pudahuel")      || null,
-    forecast_5d:   santiagoPronostico.forecast_5d || [],
-  };
-
   const rows = await Promise.all(
-    CITIES.map(async (c) => {
-      let tact = null;
-      try {
-        if (c.directemar) {
-          tact = parseDirectemarTemperature(await fetchText(DIRECTEMAR_VALPO));
-        } else {
-          tact = parseEmaTemperature(await fetchText(EMA_BASE + c.ema));
-        }
-      } catch {
-        tact = null;
-      }
-
-      const p = pickPronostico(pronostico, c.indices);
-      const b = boletin[c.ciudad] || {};
-
-      return {
-        ciudad: c.ciudad,
-        zona: c.zona,
-        tact,
-        tmin: p.tmin ?? b.tmin ?? null,
-        tmax: p.tmax ?? null,
-        condicion: p.condicion ?? null,
-        categoria: p.categoria ?? null,
-        pp_dia:  b.pp_dia  ?? null,
-        pp_acum: b.pp_acum ?? null,
-        def_sup: b.def_sup ?? null,
-      };
-    })
+    CITIES.map((c) => buildStationRow(c, pronostico, boletin))
   );
 
-  return { santiago, data: rows };
+  return {
+    santiago: {
+      quinta_normal: santiagoStations.find((x) => x.ciudad === "Quinta Normal") || null,
+      pudahuel:      santiagoStations.find((x) => x.ciudad === "Pudahuel")      || null,
+      forecast_5d:   santiagoPronostico.forecast_5d || [],
+    },
+    data: rows,
+  };
 }
 
 export default async function handler(req, res) {
@@ -410,7 +360,7 @@ export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store, max-age=0");
     res.status(200).json({
       updated_at: new Date().toISOString(),
-      source: "MeteoChile + DIRECTEMAR",
+      source: "MeteoChile",
       santiago: result.santiago,
       data: result.data,
     });
