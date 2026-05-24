@@ -18,18 +18,21 @@ const CITIES = [
   { ciudad: "Antofagasta", zona: "Norte", ema: "230002", indices: ["antofagasta"] },
   { ciudad: "Copiapó", zona: "Norte", ema: "270009", indices: ["copiapo"] },
   { ciudad: "La Serena", zona: "Norte", ema: "290004", indices: ["serena"] },
+
   { ciudad: "Valparaíso", zona: "Centro", directemar: true, indices: ["valpo"] },
   { ciudad: "Viña del Mar", zona: "Centro", ema: "330007", indices: ["vdelmar"] },
   { ciudad: "Rancagua", zona: "Centro", ema: "340045", indices: ["rancagua"] },
   { ciudad: "Talca", zona: "Centro", ema: "350028", indices: ["talca"] },
   { ciudad: "Chillán", zona: "Centro", ema: "360011", indices: ["chillan"] },
   { ciudad: "Concepción", zona: "Centro", ema: "360019", indices: ["concepcion"] },
+
   { ciudad: "Temuco", zona: "Sur", ema: "380013", indices: ["temuco"] },
   { ciudad: "Valdivia", zona: "Sur", ema: "390015", indices: ["valdivia"] },
   { ciudad: "Osorno", zona: "Sur", ema: "400013", indices: ["osorno"] },
   { ciudad: "Puerto Montt", zona: "Sur", ema: "410005", indices: ["pmontt", "ptomontt"] },
   { ciudad: "Coyhaique", zona: "Sur", ema: "450004", indices: ["coyhaique"] },
   { ciudad: "Punta Arenas", zona: "Sur", ema: "520012", indices: ["parenas", "ptarenas"] },
+
   { ciudad: "Juan Fernández", zona: "Insular", ema: "330031", indices: ["jfernandez", "juanfernandez"] },
   { ciudad: "Rapa Nui", zona: "Insular", ema: "270001", indices: ["rapanui", "pascua"] },
   { ciudad: "Rey Jorge", zona: "Insular", ema: "950001", indices: ["antartica", "reyjorge", "frei", "marsh"] },
@@ -44,27 +47,46 @@ const BOLETIN_STATIONS = [
   ["la florida", "La Serena"],
   ["punta angeles", "Valparaíso"],
   ["punta ángeles", "Valparaíso"],
+  ["angeles faro", "Valparaíso"],
+  ["ángeles faro", "Valparaíso"],
   ["rodelillo", "Viña del Mar"],
   ["rancagua", "Rancagua"],
   ["panguilemo", "Talca"],
   ["talca", "Talca"],
   ["general bernardo", "Chillán"],
+  ["bernardo o", "Chillán"],
   ["chillan", "Chillán"],
   ["chillán", "Chillán"],
   ["carriel", "Concepción"],
   ["maquehue", "Temuco"],
+  ["maquehua", "Temuco"],
   ["pichoy", "Valdivia"],
   ["canal bajo", "Osorno"],
   ["cañal bajo", "Osorno"],
   ["el tepual", "Puerto Montt"],
+  ["tepual", "Puerto Montt"],
   ["teniente vidal", "Coyhaique"],
   ["balmaceda", "Coyhaique"],
   ["carlos ibanez", "Punta Arenas"],
   ["carlos ibañez", "Punta Arenas"],
   ["robinson crusoe", "Juan Fernández"],
+  ["juan fernández, estación meteorológica", "Juan Fernández"],
+  ["juan fernandez, estacion meteorologica", "Juan Fernández"],
+  ["juan fernã¡ndez", "Juan Fernández"],
+  ["estaciã³n meteorolã³gica", "Juan Fernández"],
+  ["juan fernandez", "Juan Fernández"],
+  ["juan fernández", "Juan Fernández"],
+  ["juan fern", "Juan Fernández"],
+  ["mataveri isla de pascua ap", "Rapa Nui"],
+  ["mataveri isla de pascua", "Rapa Nui"],
+  ["isla de pascua ap", "Rapa Nui"],
   ["mataveri", "Rapa Nui"],
+  ["isla de pascua", "Rapa Nui"],
+  ["pascua", "Rapa Nui"],
   ["frei montalva", "Rey Jorge"],
   ["marsh", "Rey Jorge"],
+  ["antartica", "Rey Jorge"],
+  ["antártica", "Rey Jorge"],
 ];
 
 function normalizeText(s = "") {
@@ -72,9 +94,6 @@ function normalizeText(s = "") {
     .replace(/&aacute;/g, "á").replace(/&eacute;/g, "é")
     .replace(/&iacute;/g, "í").replace(/&oacute;/g, "ó")
     .replace(/&uacute;/g, "ú").replace(/&ntilde;/g, "ñ")
-    .replace(/&Aacute;/g, "Á").replace(/&Eacute;/g, "É")
-    .replace(/&Iacute;/g, "Í").replace(/&Oacute;/g, "Ó")
-    .replace(/&Uacute;/g, "Ú").replace(/&Ntilde;/g, "Ñ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
     .replace(/Ã¡/g, "á").replace(/Ã©/g, "é")
     .replace(/Ã­/g, "í").replace(/Ã³/g, "ó")
@@ -107,10 +126,9 @@ function normalizarCategoria(texto) {
   if (t.includes("tormenta")) return "TORMENTA ELÉCTRICA";
   if (t.includes("aguanieve")) return "AGUANIEVE";
   if (t.includes("nieve")) return "NIEVE";
-  if (t.includes("lluvia fuerte") || t.includes("chubascos fuertes")) return "LLUVIA FUERTE";
-  if (t.includes("lluvia debil") || t.includes("chubascos debiles")) return "LLUVIA DÉBIL";
+  if (t.includes("lluvia fuerte")) return "LLUVIA FUERTE";
   if (t.includes("llovizna")) return "LLOVIZNA";
-  if (t.includes("lluvia") || t.includes("chubascos")) return "LLUVIA";
+  if (t.includes("lluvia")) return "LLUVIA";
   if (t.includes("niebla")) return "NIEBLA";
   if (t.includes("neblina")) return "NEBLINA";
   if (t.includes("cubierto")) return "CUBIERTO";
@@ -222,8 +240,7 @@ function extractCells(rowHtml) {
   const cellRe = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
   let m;
   while ((m = cellRe.exec(rowHtml)) !== null) {
-    const cell = normalizeText(m[1].replace(/<[^>]+>/g, " "));
-    cells.push(cell);
+    cells.push(normalizeText(m[1].replace(/<[^>]+>/g, " ")));
   }
   return cells;
 }
@@ -237,20 +254,15 @@ function parseBoletin(html) {
     const cells = extractCells(rowMatch[0]);
     if (cells.length < 10) continue;
 
-    const station = cells[0];
-    const city = cityFromStationName(station);
+    const city = cityFromStationName(cells[0]);
     if (!city) continue;
 
-    // Columnas del boletín:
-    // 0 estación | 1 T mínima | 2 hora mín | 3 T máxima ayer | 4 hora máx
-    // 5 agua caída 24h | 6 agua caída a la fecha | 7 año pasado
-    // 8 normal a la fecha | 9 déficit/superávit % | 10 normal anual
-    const tmin    = toNumber(cells[1]);
-    const pp_dia  = numberOrZeroIfSP(cells[5]);
-    const pp_acum = numberOrZeroIfSP(cells[6]);
-    const def_sup = /^S\/P$/i.test(cells[9]) ? null : toNumber(cells[9]);
-
-    out[city] = { tmin, pp_dia, pp_acum, def_sup };
+    out[city] = {
+      tmin:    toNumber(cells[1]),
+      pp_dia:  numberOrZeroIfSP(cells[5]),
+      pp_acum: numberOrZeroIfSP(cells[6]),
+      def_sup: /^S\/P$/i.test(cells[9]) ? null : toNumber(cells[9]),
+    };
   }
 
   return out;
@@ -278,7 +290,7 @@ async function buildWeatherJson() {
       try {
         if (c.directemar) {
           tact = parseDirectemarTemperature(await fetchText(DIRECTEMAR_VALPO));
-        } else if (c.ema) {
+        } else {
           tact = parseEmaTemperature(await fetchText(EMA_BASE + c.ema));
         }
       } catch {
