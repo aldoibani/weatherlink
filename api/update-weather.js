@@ -18,41 +18,134 @@ const CITIES = [
   { ciudad: "Antofagasta", zona: "Norte", ema: "230002", indices: ["antofagasta"] },
   { ciudad: "Copiapó", zona: "Norte", ema: "270009", indices: ["copiapo"] },
   { ciudad: "La Serena", zona: "Norte", ema: "290004", indices: ["serena"] },
+
   { ciudad: "Valparaíso", zona: "Centro", directemar: true, indices: ["valpo"] },
   { ciudad: "Viña del Mar", zona: "Centro", ema: "330007", indices: ["vdelmar"] },
   { ciudad: "Rancagua", zona: "Centro", ema: "340045", indices: ["rancagua"] },
   { ciudad: "Talca", zona: "Centro", ema: "350028", indices: ["talca"] },
   { ciudad: "Chillán", zona: "Centro", ema: "360011", indices: ["chillan"] },
   { ciudad: "Concepción", zona: "Centro", ema: "360019", indices: ["concepcion"] },
+
   { ciudad: "Temuco", zona: "Sur", ema: "380013", indices: ["temuco"] },
   { ciudad: "Valdivia", zona: "Sur", ema: "390015", indices: ["valdivia"] },
   { ciudad: "Osorno", zona: "Sur", ema: "400013", indices: ["osorno"] },
-  { ciudad: "Puerto Montt", zona: "Sur", ema: "410005", indices: ["pmontt"] },
+  { ciudad: "Puerto Montt", zona: "Sur", ema: "410005", indices: ["pmontt", "ptomontt"] },
   { ciudad: "Coyhaique", zona: "Sur", ema: "450004", indices: ["coyhaique"] },
-  { ciudad: "Punta Arenas", zona: "Sur", ema: "520012", indices: ["parenas"] },
-  { ciudad: "Juan Fernández", zona: "Insular", ema: "330031", indices: ["jfernandez"] },
-  { ciudad: "Rapa Nui", zona: "Insular", ema: "270001", indices: ["rapanui"] },
-  { ciudad: "Rey Jorge", zona: "Insular", ema: "950001", indices: ["antartica"] },
+  { ciudad: "Punta Arenas", zona: "Sur", ema: "520012", indices: ["parenas", "ptarenas"] },
+
+  { ciudad: "Juan Fernández", zona: "Insular", ema: "330031", indices: ["jfernandez", "juanfernandez"] },
+  { ciudad: "Rapa Nui", zona: "Insular", ema: "270001", indices: ["rapanui", "pascua"] },
+  { ciudad: "Rey Jorge", zona: "Insular", ema: "950001", indices: ["antartica", "reyjorge", "frei", "marsh"] },
 ];
 
-function n(v) {
+const BOLETIN_STATIONS = [
+  ["chacalluta", "Arica"],
+  ["arica", "Arica"],
+  ["diego aracena", "Iquique"],
+  ["iquique", "Iquique"],
+  ["cerro moreno", "Antofagasta"],
+  ["antofagasta", "Antofagasta"],
+  ["desierto de atacama", "Copiapó"],
+  ["caldera", "Copiapó"],
+  ["copiapo", "Copiapó"],
+  ["la florida", "La Serena"],
+  ["la serena", "La Serena"],
+  ["punta angeles", "Valparaíso"],
+  ["punta ángeles", "Valparaíso"],
+  ["angeles faro", "Valparaíso"],
+  ["ángeles faro", "Valparaíso"],
+  ["rodelillo", "Viña del Mar"],
+  ["rancagua", "Rancagua"],
+  ["panguilemo", "Talca"],
+  ["talca", "Talca"],
+  ["general bernardo", "Chillán"],
+  ["bernardo o", "Chillán"],
+  ["chillan", "Chillán"],
+  ["chillán", "Chillán"],
+  ["carriel", "Concepción"],
+  ["concepcion", "Concepción"],
+  ["concepción", "Concepción"],
+  ["maquehue", "Temuco"],
+  ["maquehua", "Temuco"],
+  ["temuco", "Temuco"],
+  ["pichoy", "Valdivia"],
+  ["valdivia", "Valdivia"],
+  ["canal bajo", "Osorno"],
+  ["cañal bajo", "Osorno"],
+  ["osorno", "Osorno"],
+  ["el tepual", "Puerto Montt"],
+  ["tepual", "Puerto Montt"],
+  ["puerto montt", "Puerto Montt"],
+  ["teniente vidal", "Coyhaique"],
+  ["balmaceda", "Coyhaique"],
+  ["coyhaique", "Coyhaique"],
+  ["carlos ibanez", "Punta Arenas"],
+  ["carlos ibañez", "Punta Arenas"],
+  ["punta arenas", "Punta Arenas"],
+  ["robinson crusoe", "Juan Fernández"],
+  ["juan fernandez", "Juan Fernández"],
+  ["juan fernández", "Juan Fernández"],
+  ["mataveri", "Rapa Nui"],
+  ["isla de pascua", "Rapa Nui"],
+  ["pascua", "Rapa Nui"],
+  ["frei montalva", "Rey Jorge"],
+  ["marsh", "Rey Jorge"],
+  ["antartica", "Rey Jorge"],
+  ["antártica", "Rey Jorge"],
+];
+
+function normalizeText(s = "") {
+  return String(s)
+    .replace(/&aacute;/g, "á").replace(/&eacute;/g, "é")
+    .replace(/&iacute;/g, "í").replace(/&oacute;/g, "ó")
+    .replace(/&uacute;/g, "ú").replace(/&ntilde;/g, "ñ")
+    .replace(/&Aacute;/g, "Á").replace(/&Eacute;/g, "É")
+    .replace(/&Iacute;/g, "Í").replace(/&Oacute;/g, "Ó")
+    .replace(/&Uacute;/g, "Ú").replace(/&Ntilde;/g, "Ñ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+    .replace(/Ã/g, "Á").replace(/Ã¡/g, "á")
+    .replace(/Ã©/g, "é").replace(/Ã­/g, "í")
+    .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú")
+    .replace(/Ã±/g, "ñ").replace(/Ã'/g, "Ñ")
+    .replace(/\s+/g, " ").trim();
+}
+
+function stripAccents(s = "") {
+  return normalizeText(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function toNumber(v) {
   if (v === null || v === undefined) return null;
-  const s = String(v).replace(",", ".").replace(/[^\d.-]/g, "");
-  const x = Number(s);
+  const raw = String(v).trim();
+  if (!raw || raw === "-" || raw === "." || /^S\/P$/i.test(raw)) return null;
+  const x = Number(raw.replace(",", ".").replace(/[^\d.\-]/g, ""));
   return Number.isFinite(x) ? x : null;
+}
+
+function numberOrZeroIfSP(v) {
+  if (v === null || v === undefined) return null;
+  if (/^S\/P$/i.test(String(v).trim())) return 0;
+  return toNumber(v);
 }
 
 function normalizarCategoria(texto) {
   if (!texto) return null;
-  const t = texto.toLowerCase();
-  if (t.includes("lluvia fuerte")) return "LLUVIA FUERTE";
+  const t = stripAccents(texto).toLowerCase();
+  if (t.includes("tormenta") && t.includes("lluvia")) return "TORMENTA ELÉCTRICA CON LLUVIA";
+  if (t.includes("tormenta")) return "TORMENTA ELÉCTRICA";
+  if (t.includes("aguanieve")) return "AGUANIEVE";
+  if (t.includes("nieve")) return "NIEVE";
+  if (t.includes("lluvia fuerte") || t.includes("chubascos fuertes")) return "LLUVIA FUERTE";
+  if (t.includes("lluvia debil") || t.includes("chubascos debiles")) return "LLUVIA DÉBIL";
+  if (t.includes("intermitente") && t.includes("lluvia")) return "LLUVIA INTERMITENTE";
   if (t.includes("llovizna")) return "LLOVIZNA";
-  if (t.includes("lluvia")) return "LLUVIA";
+  if (t.includes("lluvia") || t.includes("chubascos")) return "LLUVIA";
   if (t.includes("niebla")) return "NIEBLA";
   if (t.includes("neblina")) return "NEBLINA";
   if (t.includes("cubierto")) return "CUBIERTO";
   if (t.includes("nublado")) return "NUBLADO";
-  if (t.includes("parcial")) return "PARCIAL";
+  if (t.includes("nubosidad parcial") || t.includes("parcial")) return "PARCIAL";
+  if (t.includes("escasa nubosidad")) return "ESCASA NUBOSIDAD";
   if (t.includes("despejado")) return "DESPEJADO";
   return "NUBLADO";
 }
@@ -71,8 +164,14 @@ function tramoHorarioChile() {
 }
 
 async function fetchText(url) {
-  const r = await fetch(url);
-  return await r.text();
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "WeatherLink/1.0",
+      Accept: "text/html,application/javascript,*/*",
+    },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
+  return await res.text();
 }
 
 function parsePronostico(jsText) {
@@ -85,52 +184,129 @@ function parsePronostico(jsText) {
     if (!indice) continue;
 
     const tempStr =
-      block.match(/temperatura\s*:\s*\[\s*["']([^"']+)["']/)?.[1] || "";
-
+      block.match(/temperatura\s*:\s*\[\s*["']([^"']*)["']/)?.[1] || "";
     const [minStr, maxStr] = tempStr.split("/");
-    const tmin = minStr ? n(minStr) : null;
-    const tmax = maxStr ? n(maxStr) : null;
+    const tmin = minStr ? toNumber(minStr) : null;
+    const tmax = maxStr ? toNumber(maxStr) : null;
 
-    const textos = [
-      ...block.matchAll(/["']([^"']*)["']/g),
-    ].map((m) => m[1]);
+    const textoMatch = block.match(/texto\s*:\s*\[\s*\[([\s\S]*?)\]\s*,/);
+    const textoItems = textoMatch
+      ? [...textoMatch[1].matchAll(/["']([^"']*)["']/g)].map((m) =>
+          normalizeText(m[1])
+        )
+      : [];
 
     const condicion =
-      textos[tramo + 1] ||
-      textos.find((x) => x?.trim()) ||
-      null;
+      textoItems[tramo] || textoItems.find((x) => x && x.trim()) || null;
 
-    out[indice] = {
-      tmin,
-      tmax,
-      condicion,
-      categoria: normalizarCategoria(condicion),
-    };
+    out[indice] = { tmin, tmax, condicion, categoria: normalizarCategoria(condicion) };
+  }
+  return out;
+}
+
+function pickPronostico(pronostico, indices = []) {
+  for (const idx of indices) {
+    if (pronostico[idx]) return pronostico[idx];
+  }
+  return {};
+}
+
+function parseEmaTemperature(html) {
+  const text = normalizeText(html.replace(/<[^>]+>/g, " "));
+  const patterns = [
+    /Temperatura del Aire en °C\s*([\-]?\d+(?:[,.]\d+)?)/i,
+    /Temperatura del Aire.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Temperatura.*?([\-]?\d+(?:[,.]\d+)?)\s*°?\s*C/i,
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m) return toNumber(m[1]);
+  }
+  return null;
+}
+
+function parseDirectemarTemperature(html) {
+  const text = normalizeText(html.replace(/<[^>]+>/g, " "));
+  const patterns = [
+    /Temperatura\s+del\s+Aire.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Temperatura.*?([\-]?\d+(?:[,.]\d+)?)\s*°?\s*C/i,
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m) return toNumber(m[1]);
+  }
+  return null;
+}
+
+function cityFromBoletinLine(line) {
+  const clean = stripAccents(line).toLowerCase();
+  for (const [key, city] of BOLETIN_STATIONS) {
+    const k = stripAccents(key).toLowerCase();
+    if (clean.includes(k)) return city;
+  }
+  return null;
+}
+
+function parseBoletin(html) {
+  const out = {};
+
+  let text = html
+    .replace(/<\/tr>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, " ");
+
+  text = normalizeText(text);
+
+  const stationAnchors = [
+    "Chacalluta", "Diego Aracena", "Cerro Moreno", "El Loa",
+    "Mataveri", "Desierto de Atacama", "La Florida", "Punta",
+    "Rodelillo", "Eulogio", "Quinta Normal", "Pudahuel",
+    "Santo Domingo", "Juan", "General Freire", "General Bernardo",
+    "Carriel", "Maquehue", "Pichoy", "Cañal Bajo", "Canal Bajo",
+    "El Tepual", "Teniente Vidal", "Balmaceda", "Carlos",
+    "Guardiamarina", "C.M.A.", "Frei", "Marsh",
+  ];
+
+  for (const anchor of stationAnchors) {
+    text = text.replace(new RegExp(`\\s+(${anchor})`, "g"), "\n$1");
+  }
+
+  const lines = text.split(/\n+/).map((x) => normalizeText(x)).filter(Boolean);
+
+  for (const line of lines) {
+    const ciudad = cityFromBoletinLine(line);
+    if (!ciudad) continue;
+
+    const tokens = line.match(/S\/P|-?\d+(?:[,.]\d+)?|\d{1,2}:\d{2}|\./g) || [];
+    if (tokens.length < 10) continue;
+
+    const tmin    = toNumber(tokens[0]);
+    const pp_dia  = numberOrZeroIfSP(tokens[4]);
+    const pp_acum = numberOrZeroIfSP(tokens[5]);
+    const def_sup = /^S\/P$/i.test(tokens[8]) ? null : toNumber(tokens[8]);
+
+    out[ciudad] = { tmin, pp_dia, pp_acum, def_sup };
   }
 
   return out;
 }
 
-function parseEmaTemperature(html) {
-  const text = html.replace(/<[^>]+>/g, " ");
-  const m =
-    text.match(/Temperatura del Aire en °C\s*([\-]?\d+(?:[.,]\d+)?)/i) ||
-    text.match(/Temperatura.*?([\-]?\d+(?:[.,]\d+)?)/i);
-  return m ? n(m[1]) : null;
-}
-
-function parseDirectemarTemperature(html) {
-  const text = html.replace(/<[^>]+>/g, " ");
-  const m = text.match(/Temperatura.*?([\-]?\d+(?:[.,]\d+)?)/i);
-  return m ? n(m[1]) : null;
-}
-
 async function buildWeatherJson() {
-  const [pronosticoText] = await Promise.all([
+  const [pronosticoSettled, boletinSettled] = await Promise.allSettled([
     fetchText(PRONOSTICO_URL),
+    fetchText(BOLETIN_URL),
   ]);
 
-  const pronostico = parsePronostico(pronosticoText);
+  const pronostico =
+    pronosticoSettled.status === "fulfilled"
+      ? parsePronostico(pronosticoSettled.value)
+      : {};
+
+  const boletin =
+    boletinSettled.status === "fulfilled"
+      ? parseBoletin(boletinSettled.value)
+      : {};
 
   const rows = await Promise.all(
     CITIES.map(async (c) => {
@@ -138,35 +314,28 @@ async function buildWeatherJson() {
 
       try {
         if (c.directemar) {
-          tact = parseDirectemarTemperature(
-            await fetchText(DIRECTEMAR_VALPO)
-          );
-        } else {
-          tact = parseEmaTemperature(
-            await fetchText(EMA_BASE + c.ema)
-          );
+          tact = parseDirectemarTemperature(await fetchText(DIRECTEMAR_VALPO));
+        } else if (c.ema) {
+          tact = parseEmaTemperature(await fetchText(EMA_BASE + c.ema));
         }
-      } catch {}
-
-      let p = {};
-      for (const idx of c.indices) {
-        if (pronostico[idx]) {
-          p = pronostico[idx];
-          break;
-        }
+      } catch {
+        tact = null;
       }
+
+      const p = pickPronostico(pronostico, c.indices);
+      const b = boletin[c.ciudad] || {};
 
       return {
         ciudad: c.ciudad,
         zona: c.zona,
         tact,
-        tmin: p.tmin ?? null,
+        tmin: p.tmin ?? b.tmin ?? null,
         tmax: p.tmax ?? null,
         condicion: p.condicion ?? null,
         categoria: p.categoria ?? null,
-        pp_dia: null,
-        pp_acum: null,
-        def_sup: null,
+        pp_dia:  b.pp_dia  ?? null,
+        pp_acum: b.pp_acum ?? null,
+        def_sup: b.def_sup ?? null,
       };
     })
   );
@@ -177,6 +346,7 @@ async function buildWeatherJson() {
 export default async function handler(req, res) {
   try {
     const data = await buildWeatherJson();
+    res.setHeader("Cache-Control", "no-store, max-age=0");
     res.status(200).json({
       updated_at: new Date().toISOString(),
       source: "MeteoChile + DIRECTEMAR",
@@ -184,7 +354,8 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     res.status(500).json({
-      error: err.message,
+      error: "No se pudo actualizar WeatherLink",
+      detail: err?.message || String(err),
     });
   }
 }
