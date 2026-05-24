@@ -599,25 +599,71 @@ export default function App() {
               </div>
               <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "14px" : "18px", boxShadow:"0 1px 6px rgba(0,0,0,0.04)" }}>
                 <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "repeat(2,1fr)", gap:10, marginBottom:16 }}>
-                  {santiagoRows.map((d) => (
-                    <div key={d.ciudad} style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:13, padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <Icon cat={d.categoria} size={28}/>
-                        <div>
-                          <div style={{ fontSize:13, fontWeight:600, letterSpacing:"-.15px" }}>{stationName(d)}</div>
-                          <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>Estación Santiago</div>
+                  {santiagoRows.map((d) => {
+                    const sup = d.def_sup !== null && d.def_sup !== undefined && d.def_sup >= 0;
+
+                    return (
+                      <div key={d.ciudad} style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:13, padding:"14px 16px" }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:12 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <Icon cat={d.categoria} size={28}/>
+                            <div>
+                              <div style={{ fontSize:13, fontWeight:600, letterSpacing:"-.15px" }}>{stationName(d)}</div>
+                              <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>Estación Santiago</div>
+                            </div>
+                          </div>
+
+                          <div style={{ textAlign:"right" }}>
+                            <div style={{ ...mono, fontSize:22, fontWeight:600, color:C.text }}>{fmtT(d.tact)}</div>
+                            <div style={{ ...mono, fontSize:11, marginTop:2 }}>
+                              <span style={{ color:"#60A5FA" }}>{fmtT(d.tmin)}</span>
+                              <span style={{ color:C.border, margin:"0 4px" }}>/</span>
+                              <span style={{ color:C.orange }}>{fmtT(d.tmax)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, borderTop:`1px solid ${C.border}`, paddingTop:10 }}>
+                          <div>
+                            <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>PP hoy</div>
+                            <div style={{ ...mono, fontSize:12, color: d.pp_dia > 0 ? C.blue : "#475569", marginTop:3 }}>
+                              {d.pp_dia === null || d.pp_dia === undefined ? "—" : `${d.pp_dia} mm`}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>PP año</div>
+                            <div style={{ ...mono, fontSize:12, color:"#475569", marginTop:3 }}>
+                              {d.pp_anio === null || d.pp_anio === undefined ? "—" : `${d.pp_anio} mm`}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>Vs normal</div>
+                            <div style={{ marginTop:3 }}>
+                              {d.def_sup === null || d.def_sup === undefined
+                                ? <span style={{ fontSize:11, color:C.border }}>—</span>
+                                : <span style={{
+                                    display:"inline-flex",
+                                    alignItems:"center",
+                                    gap:3,
+                                    fontSize:11,
+                                    fontWeight:600,
+                                    ...mono,
+                                    color: sup ? C.green : C.red,
+                                    background: sup ? C.greenBg : C.redBg,
+                                    borderRadius:20,
+                                    padding:"2px 8px"
+                                  }}>
+                                    {sup ? "▲" : "▼"} {Math.abs(d.def_sup)}%
+                                  </span>
+                              }
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div style={{ textAlign:"right" }}>
-                        <div style={{ ...mono, fontSize:22, fontWeight:600, color:C.text }}>{fmtT(d.tact)}</div>
-                        <div style={{ ...mono, fontSize:11, marginTop:2 }}>
-                          <span style={{ color:"#60A5FA" }}>{fmtT(d.tmin)}</span>
-                          <span style={{ color:C.border, margin:"0 4px" }}>/</span>
-                          <span style={{ color:C.orange }}>{fmtT(d.tmax)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>
