@@ -18,21 +18,18 @@ const CITIES = [
   { ciudad: "Antofagasta", zona: "Norte", ema: "230002", indices: ["antofagasta"] },
   { ciudad: "Copiapó", zona: "Norte", ema: "270009", indices: ["copiapo"] },
   { ciudad: "La Serena", zona: "Norte", ema: "290004", indices: ["serena"] },
-
   { ciudad: "Valparaíso", zona: "Centro", directemar: true, indices: ["valpo"] },
   { ciudad: "Viña del Mar", zona: "Centro", ema: "330007", indices: ["vdelmar"] },
   { ciudad: "Rancagua", zona: "Centro", ema: "340045", indices: ["rancagua"] },
   { ciudad: "Talca", zona: "Centro", ema: "350028", indices: ["talca"] },
   { ciudad: "Chillán", zona: "Centro", ema: "360011", indices: ["chillan"] },
   { ciudad: "Concepción", zona: "Centro", ema: "360019", indices: ["concepcion"] },
-
   { ciudad: "Temuco", zona: "Sur", ema: "380013", indices: ["temuco"] },
   { ciudad: "Valdivia", zona: "Sur", ema: "390015", indices: ["valdivia"] },
   { ciudad: "Osorno", zona: "Sur", ema: "400013", indices: ["osorno"] },
   { ciudad: "Puerto Montt", zona: "Sur", ema: "410005", indices: ["pmontt", "ptomontt"] },
   { ciudad: "Coyhaique", zona: "Sur", ema: "450004", indices: ["coyhaique"] },
   { ciudad: "Punta Arenas", zona: "Sur", ema: "520012", indices: ["parenas", "ptarenas"] },
-
   { ciudad: "Juan Fernández", zona: "Insular", ema: "330031", indices: ["jfernandez", "juanfernandez"] },
   { ciudad: "Rapa Nui", zona: "Insular", ema: "270001", indices: ["rapanui", "pascua"] },
   { ciudad: "Rey Jorge", zona: "Insular", ema: "950001", indices: ["antartica", "reyjorge", "frei", "marsh"] },
@@ -40,58 +37,34 @@ const CITIES = [
 
 const BOLETIN_STATIONS = [
   ["chacalluta", "Arica"],
-  ["arica", "Arica"],
   ["diego aracena", "Iquique"],
-  ["iquique", "Iquique"],
   ["cerro moreno", "Antofagasta"],
-  ["antofagasta", "Antofagasta"],
   ["desierto de atacama", "Copiapó"],
   ["caldera", "Copiapó"],
-  ["copiapo", "Copiapó"],
   ["la florida", "La Serena"],
-  ["la serena", "La Serena"],
   ["punta angeles", "Valparaíso"],
   ["punta ángeles", "Valparaíso"],
-  ["angeles faro", "Valparaíso"],
-  ["ángeles faro", "Valparaíso"],
   ["rodelillo", "Viña del Mar"],
   ["rancagua", "Rancagua"],
   ["panguilemo", "Talca"],
   ["talca", "Talca"],
   ["general bernardo", "Chillán"],
-  ["bernardo o", "Chillán"],
   ["chillan", "Chillán"],
   ["chillán", "Chillán"],
   ["carriel", "Concepción"],
-  ["concepcion", "Concepción"],
-  ["concepción", "Concepción"],
   ["maquehue", "Temuco"],
-  ["maquehua", "Temuco"],
-  ["temuco", "Temuco"],
   ["pichoy", "Valdivia"],
-  ["valdivia", "Valdivia"],
   ["canal bajo", "Osorno"],
   ["cañal bajo", "Osorno"],
-  ["osorno", "Osorno"],
   ["el tepual", "Puerto Montt"],
-  ["tepual", "Puerto Montt"],
-  ["puerto montt", "Puerto Montt"],
   ["teniente vidal", "Coyhaique"],
   ["balmaceda", "Coyhaique"],
-  ["coyhaique", "Coyhaique"],
   ["carlos ibanez", "Punta Arenas"],
   ["carlos ibañez", "Punta Arenas"],
-  ["punta arenas", "Punta Arenas"],
   ["robinson crusoe", "Juan Fernández"],
-  ["juan fernandez", "Juan Fernández"],
-  ["juan fernández", "Juan Fernández"],
   ["mataveri", "Rapa Nui"],
-  ["isla de pascua", "Rapa Nui"],
-  ["pascua", "Rapa Nui"],
   ["frei montalva", "Rey Jorge"],
   ["marsh", "Rey Jorge"],
-  ["antartica", "Rey Jorge"],
-  ["antártica", "Rey Jorge"],
 ];
 
 function normalizeText(s = "") {
@@ -103,10 +76,9 @@ function normalizeText(s = "") {
     .replace(/&Iacute;/g, "Í").replace(/&Oacute;/g, "Ó")
     .replace(/&Uacute;/g, "Ú").replace(/&Ntilde;/g, "Ñ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-    .replace(/Ã/g, "Á").replace(/Ã¡/g, "á")
-    .replace(/Ã©/g, "é").replace(/Ã­/g, "í")
-    .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú")
-    .replace(/Ã±/g, "ñ").replace(/Ã'/g, "Ñ")
+    .replace(/Ã¡/g, "á").replace(/Ã©/g, "é")
+    .replace(/Ã­/g, "í").replace(/Ã³/g, "ó")
+    .replace(/Ãº/g, "ú").replace(/Ã±/g, "ñ")
     .replace(/\s+/g, " ").trim();
 }
 
@@ -137,15 +109,13 @@ function normalizarCategoria(texto) {
   if (t.includes("nieve")) return "NIEVE";
   if (t.includes("lluvia fuerte") || t.includes("chubascos fuertes")) return "LLUVIA FUERTE";
   if (t.includes("lluvia debil") || t.includes("chubascos debiles")) return "LLUVIA DÉBIL";
-  if (t.includes("intermitente") && t.includes("lluvia")) return "LLUVIA INTERMITENTE";
   if (t.includes("llovizna")) return "LLOVIZNA";
   if (t.includes("lluvia") || t.includes("chubascos")) return "LLUVIA";
   if (t.includes("niebla")) return "NIEBLA";
   if (t.includes("neblina")) return "NEBLINA";
   if (t.includes("cubierto")) return "CUBIERTO";
   if (t.includes("nublado")) return "NUBLADO";
-  if (t.includes("nubosidad parcial") || t.includes("parcial")) return "PARCIAL";
-  if (t.includes("escasa nubosidad")) return "ESCASA NUBOSIDAD";
+  if (t.includes("parcial")) return "PARCIAL";
   if (t.includes("despejado")) return "DESPEJADO";
   return "NUBLADO";
 }
@@ -238,8 +208,8 @@ function parseDirectemarTemperature(html) {
   return null;
 }
 
-function cityFromBoletinLine(line) {
-  const clean = stripAccents(line).toLowerCase();
+function cityFromStationName(stationName) {
+  const clean = stripAccents(stationName).toLowerCase();
   for (const [key, city] of BOLETIN_STATIONS) {
     const k = stripAccents(key).toLowerCase();
     if (clean.includes(k)) return city;
@@ -247,46 +217,40 @@ function cityFromBoletinLine(line) {
   return null;
 }
 
+function extractCells(rowHtml) {
+  const cells = [];
+  const cellRe = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+  let m;
+  while ((m = cellRe.exec(rowHtml)) !== null) {
+    const cell = normalizeText(m[1].replace(/<[^>]+>/g, " "));
+    cells.push(cell);
+  }
+  return cells;
+}
+
 function parseBoletin(html) {
   const out = {};
+  const rowRe = /<tr[\s\S]*?<\/tr>/gi;
+  let rowMatch;
 
-  let text = html
-    .replace(/<\/tr>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<[^>]+>/g, " ");
+  while ((rowMatch = rowRe.exec(html)) !== null) {
+    const cells = extractCells(rowMatch[0]);
+    if (cells.length < 10) continue;
 
-  text = normalizeText(text);
+    const station = cells[0];
+    const city = cityFromStationName(station);
+    if (!city) continue;
 
-  const stationAnchors = [
-    "Chacalluta", "Diego Aracena", "Cerro Moreno", "El Loa",
-    "Mataveri", "Desierto de Atacama", "La Florida", "Punta",
-    "Rodelillo", "Eulogio", "Quinta Normal", "Pudahuel",
-    "Santo Domingo", "Juan", "General Freire", "General Bernardo",
-    "Carriel", "Maquehue", "Pichoy", "Cañal Bajo", "Canal Bajo",
-    "El Tepual", "Teniente Vidal", "Balmaceda", "Carlos",
-    "Guardiamarina", "C.M.A.", "Frei", "Marsh",
-  ];
+    // Columnas del boletín:
+    // 0 estación | 1 T mínima | 2 hora mín | 3 T máxima ayer | 4 hora máx
+    // 5 agua caída 24h | 6 agua caída a la fecha | 7 año pasado
+    // 8 normal a la fecha | 9 déficit/superávit % | 10 normal anual
+    const tmin    = toNumber(cells[1]);
+    const pp_dia  = numberOrZeroIfSP(cells[5]);
+    const pp_acum = numberOrZeroIfSP(cells[6]);
+    const def_sup = /^S\/P$/i.test(cells[9]) ? null : toNumber(cells[9]);
 
-  for (const anchor of stationAnchors) {
-    text = text.replace(new RegExp(`\\s+(${anchor})`, "g"), "\n$1");
-  }
-
-  const lines = text.split(/\n+/).map((x) => normalizeText(x)).filter(Boolean);
-
-  for (const line of lines) {
-    const ciudad = cityFromBoletinLine(line);
-    if (!ciudad) continue;
-
-    const tokens = line.match(/S\/P|-?\d+(?:[,.]\d+)?|\d{1,2}:\d{2}|\./g) || [];
-    if (tokens.length < 10) continue;
-
-    const tmin    = toNumber(tokens[0]);
-    const pp_dia  = numberOrZeroIfSP(tokens[4]);
-    const pp_acum = numberOrZeroIfSP(tokens[5]);
-    const def_sup = /^S\/P$/i.test(tokens[8]) ? null : toNumber(tokens[8]);
-
-    out[ciudad] = { tmin, pp_dia, pp_acum, def_sup };
+    out[city] = { tmin, pp_dia, pp_acum, def_sup };
   }
 
   return out;
@@ -311,7 +275,6 @@ async function buildWeatherJson() {
   const rows = await Promise.all(
     CITIES.map(async (c) => {
       let tact = null;
-
       try {
         if (c.directemar) {
           tact = parseDirectemarTemperature(await fetchText(DIRECTEMAR_VALPO));
