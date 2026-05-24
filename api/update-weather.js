@@ -288,7 +288,6 @@ function parseBoletin(html) {
       def_sup: /^S\/P$/i.test(cells[9]) ? null : toNumber(cells[9]),
     };
   }
-
   return out;
 }
 
