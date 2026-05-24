@@ -45,10 +45,17 @@ const BOLETIN_STATIONS = [
   ["desierto de atacama", "Copiapó"],
   ["caldera", "Copiapó"],
   ["la florida", "La Serena"],
+
+  // VALPARAÍSO
+  ["punta ãngeles faro", "Valparaíso"],
+  ["punta ãngeles", "Valparaíso"],
+  ["punta angeles faro", "Valparaíso"],
+  ["punta ángeles faro", "Valparaíso"],
   ["punta angeles", "Valparaíso"],
   ["punta ángeles", "Valparaíso"],
   ["angeles faro", "Valparaíso"],
   ["ángeles faro", "Valparaíso"],
+
   ["rodelillo", "Viña del Mar"],
   ["rancagua", "Rancagua"],
   ["panguilemo", "Talca"],
@@ -69,6 +76,8 @@ const BOLETIN_STATIONS = [
   ["balmaceda", "Coyhaique"],
   ["carlos ibanez", "Punta Arenas"],
   ["carlos ibañez", "Punta Arenas"],
+
+  // JUAN FERNÁNDEZ
   ["robinson crusoe", "Juan Fernández"],
   ["juan fernández, estación meteorológica", "Juan Fernández"],
   ["juan fernandez, estacion meteorologica", "Juan Fernández"],
@@ -77,12 +86,16 @@ const BOLETIN_STATIONS = [
   ["juan fernandez", "Juan Fernández"],
   ["juan fernández", "Juan Fernández"],
   ["juan fern", "Juan Fernández"],
+
+  // RAPA NUI
   ["mataveri isla de pascua ap", "Rapa Nui"],
   ["mataveri isla de pascua", "Rapa Nui"],
   ["isla de pascua ap", "Rapa Nui"],
   ["mataveri", "Rapa Nui"],
   ["isla de pascua", "Rapa Nui"],
   ["pascua", "Rapa Nui"],
+
+  // REY JORGE
   ["frei montalva", "Rey Jorge"],
   ["marsh", "Rey Jorge"],
   ["antartica", "Rey Jorge"],
@@ -95,9 +108,10 @@ function normalizeText(s = "") {
     .replace(/&iacute;/g, "í").replace(/&oacute;/g, "ó")
     .replace(/&uacute;/g, "ú").replace(/&ntilde;/g, "ñ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-    .replace(/Ã¡/g, "á").replace(/Ã©/g, "é")
-    .replace(/Ã­/g, "í").replace(/Ã³/g, "ó")
-    .replace(/Ãº/g, "ú").replace(/Ã±/g, "ñ")
+    .replace(/Ã/g, "Á").replace(/Ã¡/g, "á")
+    .replace(/Ã©/g, "é").replace(/Ã­/g, "í")
+    .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú")
+    .replace(/Ã±/g, "ñ")
     .replace(/\s+/g, " ").trim();
 }
 
