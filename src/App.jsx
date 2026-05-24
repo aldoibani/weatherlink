@@ -201,6 +201,7 @@ function parseJsonChatGPT(text) {
       if (!ciudad) continue;
       results[ciudad] = {
         tact:      r.tact      ?? null,
+        viento_max: r.viento_max ?? null,
         tmin:      r.tmin      ?? null,
         tmax:      r.tmax      ?? null,
         condicion: r.condicion ?? "",
@@ -361,6 +362,7 @@ const mono = { fontFamily:"'Geist Mono','Courier New',monospace" };
 
 const fmtT = (v) => v === null || v === undefined ? "—" : `${v}°`;
 const fmtN = (v, u="") => v === null || v === undefined ? "—" : `${v}${u}`;
+const fmtWind = (v) => v === null || v === undefined ? "—" : `${v} km/h`;
 
 const stationName = (row) => {
   if (!row) return "";
@@ -487,6 +489,7 @@ export default function App() {
         return {
           ...d,
           tact:      m.tact      ?? null,
+          viento_max: m.viento_max ?? null,
           tmin:      m.tmin      ?? null,
           tmax:      m.tmax      ?? null,
           condicion: m.condicion ?? "",
@@ -522,6 +525,7 @@ export default function App() {
         if (!m) return d;
         return { ...d,
           tact:      m.tact      ?? d.tact,
+          viento_max: m.viento_max ?? d.viento_max,
           tmin:      m.tmin      ?? d.tmin,
           tmax:      m.tmax      ?? d.tmax,
           condicion: m.condicion || d.condicion,
@@ -730,7 +734,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, borderTop:`1px solid ${C.border}`, paddingTop:10 }}>
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, borderTop:`1px solid ${C.border}`, paddingTop:10 }}>
                           <div>
                             <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>PP hoy</div>
                             <div style={{ ...mono, fontSize:12, color: d.pp_dia > 0 ? C.blue : "#475569", marginTop:3 }}>
@@ -767,6 +771,13 @@ export default function App() {
                               }
                             </div>
                           </div>
+
+                          <div>
+                            <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>Viento máx</div>
+                            <div style={{ ...mono, fontSize:12, color:"#475569", marginTop:3 }}>
+                              {fmtWind(d.viento_max)}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -795,18 +806,20 @@ export default function App() {
 
           {/* Encabezados */}
           {!isMobile && (
-            <div style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", padding:"0 18px 8px", gap:8, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px 86px", padding:"0 18px 8px", gap:8, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
               <span>Ciudad</span><span style={{textAlign:"center"}}>Actual</span>
               <span style={{textAlign:"center"}}>Mín</span><span style={{textAlign:"center"}}>Máx</span>
               <span style={{textAlign:"center"}}>PP hoy</span><span style={{textAlign:"center"}}>PP año</span>
               <span style={{textAlign:"center"}}>vs. Normal</span>
+              <span style={{textAlign:"center"}}>Viento máx</span>
             </div>
           )}
           {isMobile && (
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 90px 90px", padding:"0 14px 8px", gap:6, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 58px 78px 74px 62px", padding:"0 14px 8px", gap:6, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
               <span>Ciudad</span><span style={{textAlign:"center"}}>Actual</span>
               <span style={{textAlign:"center"}}>Mín / Máx</span>
               <span style={{textAlign:"center"}}>vs. Normal</span>
+              <span style={{textAlign:"center"}}>Viento</span>
             </div>
           )}
 
@@ -824,7 +837,7 @@ export default function App() {
                       <>
                       {/* Desktop row */}
                       {!isMobile && (
-                        <div key={d.ciudad} style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", alignItems:"center", padding:"11px 18px", gap:8, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none", transition:"background .1s" }}
+                        <div key={d.ciudad} style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px 86px", alignItems:"center", padding:"11px 18px", gap:8, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none", transition:"background .1s" }}
                           onMouseEnter={e=>e.currentTarget.style.background="#FAFBFC"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}
                         >
@@ -849,11 +862,14 @@ export default function App() {
                                 </span>
                             }
                           </div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:12, color:"#475569" }}>
+                            {fmtWind(d.viento_max)}
+                          </div>
                         </div>
                       )}
                       {/* Mobile row */}
                       {isMobile && (
-                        <div key={d.ciudad+"m"} style={{ display:"grid", gridTemplateColumns:"1fr 60px 90px 90px", alignItems:"center", padding:"12px 14px", gap:6, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none" }}>
+                        <div key={d.ciudad+"m"} style={{ display:"grid", gridTemplateColumns:"1fr 58px 78px 74px 62px", alignItems:"center", padding:"12px 14px", gap:6, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none" }}>
                           <div style={{ display:"flex", alignItems:"center", gap:9 }}>
                             <Icon cat={d.categoria} size={24}/>
                             <span style={{ fontWeight:500, fontSize:13, letterSpacing:"-.15px" }}>{d.ciudad}</span>
@@ -874,6 +890,9 @@ export default function App() {
                                 </span>
                             }
                           </div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:11, color:"#475569" }}>
+                            {fmtWind(d.viento_max)}
+                          </div>
                         </div>
                       )}
                       </>
@@ -885,7 +904,7 @@ export default function App() {
           })}
 
           <div style={{ fontSize:10, color:"#C0C8D4", textAlign:"right", marginTop:6 }}>
-            Condición/pronóstico: MeteoChile pronostico.js · Temperatura: EMA · PP: Boletín DMC · Normales 1991–2020
+            Condición/pronóstico: MeteoChile pronostico.js · Temperatura/viento: EMA · PP: Boletín DMC · Normales 1991–2020
           </div>
         </main>
       )}
