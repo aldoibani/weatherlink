@@ -661,7 +661,7 @@ export default function App() {
 
       {/* ── Tab: Condición actual ───────────────────────────────────────────── */}
       {tab === "condicion" && (
-        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth:1300, margin:"0 auto" }}>
+        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth:1480, margin:"0 auto", width:"100%" }}>
 
           {/* Toolbar */}
           <div style={{ marginBottom: isMobile ? 12 : 18 }}>
