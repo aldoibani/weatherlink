@@ -314,6 +314,27 @@ function parseEmaTemperature(html) {
   return null;
 }
 
+function parseEmaWindMax(html) {
+  const text = normalizeText(html.replace(/<[^>]+>/g, " "));
+  const patterns = [
+    /Velocidad Máxima del Viento.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Velocidad Maxima del Viento.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Intensidad Máxima del Viento.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Intensidad Maxima del Viento.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Viento Máximo.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Viento Maximo.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Racha Máxima.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Racha Maxima.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Ráfaga Máxima.*?([\-]?\d+(?:[,.]\d+)?)/i,
+    /Rafaga Maxima.*?([\-]?\d+(?:[,.]\d+)?)/i,
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m) return toNumber(m[1]);
+  }
+  return null;
+}
+
 function cityFromStationName(stationName) {
   const clean = stripAccents(stationName).toLowerCase();
   for (const [key, city] of BOLETIN_STATIONS) {
@@ -357,10 +378,15 @@ function parseBoletin(html) {
 
 async function buildStationRow(station, pronostico, boletin) {
   let tact = null;
+  let viento_max = null;
+
   try {
-    tact = parseEmaTemperature(await fetchText(EMA_BASE + station.ema));
+    const emaHtml = await fetchText(EMA_BASE + station.ema);
+    tact = parseEmaTemperature(emaHtml);
+    viento_max = parseEmaWindMax(emaHtml);
   } catch {
     tact = null;
+    viento_max = null;
   }
 
   const p = pickPronostico(pronostico, station.indices);
@@ -371,6 +397,7 @@ async function buildStationRow(station, pronostico, boletin) {
     label: station.label || station.ciudad,
     zona: station.zona,
     tact,
+    viento_max,
     tmin: p.tmin ?? b.tmin ?? null,
     tmax: p.tmax ?? null,
     condicion: p.condicion ?? null,
