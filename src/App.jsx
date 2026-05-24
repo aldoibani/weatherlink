@@ -49,7 +49,7 @@ function tramoHorario() {
 // ── Fetch pronostico.js de MeteoChile ─────────────────────────────────────────
 const INDICE_MAP = {
   "Arica":"arica","Iquique":"iquique","Antofagasta":"antofagasta","Copiapó":"copiapo",
-  "La Serena":"serena","Valparaíso":"valpo","Viña del Mar":"vdelmar","Santiago":"stgo",
+  "La Serena":"serena","Valparaíso":"valpo","Viña del Mar":"vdelmar","Santiago":"stgo","Pudahuel":"stgo",
   "Rancagua":"rancagua","Talca":"talca","Chillán":"chillan","Concepción":"concepcion",
   "Temuco":"temuco","Valdivia":"valdivia","Osorno":"osorno","Puerto Montt":"ptomontt",
   "Coyhaique":"coyhaique","Punta Arenas":"ptarenas","Juan Fernández":"juanfernandez",
@@ -217,6 +217,8 @@ function parseJsonChatGPT(text) {
 
 // ── Datos base 23 mayo 2026 ───────────────────────────────────────────────────
 const DEFAULT_DATA = [
+  { zona:"Santiago", ciudad:"Santiago",       estacion:"Quinta Normal", tmin:null, tmax:null, tact:null, categoria:"NUBLADO", condicion:"", pp_dia:null, pp_anio:null, def_sup:null, pp_normal:null },
+  { zona:"Santiago", ciudad:"Pudahuel",       estacion:"Pudahuel",      tmin:null, tmax:null, tact:null, categoria:"NUBLADO", condicion:"", pp_dia:null, pp_anio:null, def_sup:null, pp_normal:null },
   { zona:"Norte",   ciudad:"Arica",         tmin:null, tmax:22,   tact:19.2, categoria:"CUBIERTO",  condicion:"Cubierto",                               pp_dia:0,    pp_anio:1.5,   def_sup:50,    pp_normal:1.0   },
   { zona:"Norte",   ciudad:"Iquique",        tmin:17.1, tmax:21.0, tact:20.2, categoria:"NUBLADO",   condicion:"Nublado variando a despejado",            pp_dia:0,    pp_anio:0,     def_sup:-100,  pp_normal:null  },
   { zona:"Norte",   ciudad:"Antofagasta",    tmin:11.3, tmax:16.5, tact:17.6, categoria:"NUBLADO",   condicion:"Nublado variando a nubosidad parcial",    pp_dia:0,    pp_anio:0,     def_sup:-100,  pp_normal:null  },
@@ -282,12 +284,36 @@ const mono = { fontFamily:"'Geist Mono','Courier New',monospace" };
 const fmtT = (v) => v === null || v === undefined ? "—" : `${v}°`;
 const fmtN = (v, u="") => v === null || v === undefined ? "—" : `${v}${u}`;
 
+const stationName = (row) => {
+  if (!row) return "";
+  if (row.estacion) return row.estacion;
+  if (row.ciudad === "Santiago") return "Quinta Normal";
+  if (row.ciudad === "Pudahuel") return "Pudahuel";
+  return row.ciudad;
+};
+
+const shortDay = (dia = "") => String(dia).split(" ")[0] || "";
+
+const pickSantiagoForecast = (payload, fallback) => {
+  const candidates = [
+    payload?.santiago?.forecast_5d,
+    payload?.santiago?.forecast5d,
+    payload?.forecast_5d,
+    payload?.forecast5d,
+    payload?.pronostico_5d,
+  ];
+  const found = candidates.find(Array.isArray);
+  return found && found.length ? found.slice(0, 5) : fallback;
+};
+
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const isMobile = useIsMobile();
   const [tab, setTab]               = useState("condicion");
   const [zona, setZona]             = useState("Todas");
   const [data, setData]             = useState(DEFAULT_DATA);
+  const [santiagoForecast, setSantiagoForecast] = useState(SANTIAGO_5);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [pronosticoStatus, setPronosticoStatus] = useState("idle"); // idle|loading|ok|error
   const [pasteOpen, setPasteOpen]   = useState(false);
@@ -358,14 +384,20 @@ export default function App() {
       }
 
       const payload = await res.json();
-      const rows = Array.isArray(payload) ? payload : payload.data;
+      setSantiagoForecast(pickSantiagoForecast(payload, SANTIAGO_5));
+      const rows = Array.isArray(payload) ? payload : (payload.data || payload.regiones || []);
 
       if (!Array.isArray(rows)) {
         throw new Error("Respuesta inválida: no viene array de datos");
       }
 
+      const santiagoExtra = [];
+      if (payload?.santiago?.quinta_normal) santiagoExtra.push({ ...payload.santiago.quinta_normal, ciudad:"Santiago", zona:"Santiago", estacion:"Quinta Normal" });
+      if (payload?.santiago?.pudahuel) santiagoExtra.push({ ...payload.santiago.pudahuel, ciudad:"Pudahuel", zona:"Santiago", estacion:"Pudahuel" });
+      const mergedRows = [...rows, ...santiagoExtra];
+
       setData(prev => prev.map(d => {
-        const m = rows.find(r => r.ciudad === d.ciudad);
+        const m = mergedRows.find(r => r.ciudad === d.ciudad);
         if (!m) return d;
 
         return {
@@ -450,6 +482,11 @@ export default function App() {
 
   const filtered = zona === "Todas" ? data : data.filter(d => d.zona === zona);
   const zones    = zona === "Todas" ? ZONAS : [zona];
+  const santiagoRows = [
+    data.find(d => d.ciudad === "Santiago"),
+    data.find(d => d.ciudad === "Pudahuel"),
+  ].filter(Boolean);
+  const showSantiagoBlock = zona === "Todas" || zona === "Santiago";
 
   // Indicador pronóstico
   const statusColor = { idle:"#94A3B8", loading:"#F59E0B", ok:"#22C55E", error:"#EF4444" }[pronosticoStatus];
@@ -555,6 +592,54 @@ export default function App() {
             </div>
           )}
 
+          {showSantiagoBlock && (
+            <section style={{ marginBottom:18 }}>
+              <div style={{ fontSize:9.5, fontWeight:600, color:C.muted, textTransform:"uppercase", letterSpacing:".1em", padding:"0 18px", marginBottom:6 }}>
+                Santiago
+              </div>
+              <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "14px" : "18px", boxShadow:"0 1px 6px rgba(0,0,0,0.04)" }}>
+                <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "repeat(2,1fr)", gap:10, marginBottom:16 }}>
+                  {santiagoRows.map((d) => (
+                    <div key={d.ciudad} style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:13, padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <Icon cat={d.categoria} size={28}/>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:600, letterSpacing:"-.15px" }}>{stationName(d)}</div>
+                          <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>Estación Santiago</div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign:"right" }}>
+                        <div style={{ ...mono, fontSize:22, fontWeight:600, color:C.text }}>{fmtT(d.tact)}</div>
+                        <div style={{ ...mono, fontSize:11, marginTop:2 }}>
+                          <span style={{ color:"#60A5FA" }}>{fmtT(d.tmin)}</span>
+                          <span style={{ color:C.border, margin:"0 4px" }}>/</span>
+                          <span style={{ color:C.orange }}>{fmtT(d.tmax)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>
+                  Pronóstico extendido Santiago · 5 días
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:isMobile ? "repeat(5, minmax(76px, 1fr))" : "repeat(5,1fr)", gap:8, overflowX:isMobile ? "auto" : "visible", paddingBottom:isMobile ? 2 : 0 }}>
+                  {santiagoForecast.slice(0,5).map((d,i)=>(
+                    <div key={`${d.dia || i}-${i}`} style={{ minWidth:isMobile ? 76 : "auto", background:C.bg, borderRadius:12, padding:"11px 8px", border:`1px solid ${C.border}`, textAlign:"center" }}>
+                      <div style={{ fontSize:10, color:C.muted, marginBottom:7 }}>{shortDay(d.dia)}</div>
+                      <div style={{ display:"flex", justifyContent:"center" }}><Icon cat={d.categoria || normalizarCategoria(d.condicion)} size={24}/></div>
+                      <div style={{ fontSize:11, ...mono, marginTop:7 }}>
+                        <span style={{color:"#60A5FA"}}>{fmtT(d.tmin)}</span>
+                        <span style={{color:C.border, margin:"0 3px"}}>/</span>
+                        <span style={{color:C.orange}}>{fmtT(d.tmax)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Encabezados */}
           {!isMobile && (
             <div style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", padding:"0 18px 8px", gap:8, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
@@ -657,7 +742,7 @@ export default function App() {
         <main style={{ padding:"40px 28px", maxWidth:660, margin:"0 auto" }}>
           <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
             <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:14 }}>Contenido del archivo</div>
-            <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico por zona · {data.length} ciudades</div>
+            <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico por zona · {data.filter(d=>d.zona!=="Santiago").length} ciudades</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:22 }}>
               {ZONAS.map(z=>(
                 <div key={z} style={{ background:C.bg, borderRadius:10, padding:"10px 14px", border:`1px solid ${C.border}` }}>
@@ -712,7 +797,7 @@ export default function App() {
             </div>
           )}
           <p style={{ textAlign:"center", fontSize:11, color:C.muted, marginTop:14 }}>
-            {data.length} ciudades · pronóstico extendido Santiago 5 días · formato .xlsx
+            {data.filter(d=>d.zona!=="Santiago").length} ciudades · pronóstico extendido Santiago 5 días · formato .xlsx
           </p>
         </main>
       )}
