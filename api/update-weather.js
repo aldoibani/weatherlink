@@ -12,13 +12,31 @@ const EMA_BASE =
 const DIRECTEMAR_VALPO =
   "https://serviciosonline.directemar.cl/meteomapa/fichaEstacion/VALPARAISO";
 
+const SANTIAGO_STATIONS = [
+  {
+    key: "quinta_normal",
+    ciudad: "Quinta Normal",
+    label: "Quinta Normal",
+    zona: "Santiago",
+    ema: "330021",
+    indices: ["stgo", "santiago"],
+  },
+  {
+    key: "pudahuel",
+    ciudad: "Pudahuel",
+    label: "Pudahuel",
+    zona: "Santiago",
+    ema: "330020",
+    indices: ["stgo", "santiago"],
+  },
+];
+
 const CITIES = [
   { ciudad: "Arica", zona: "Norte", ema: "180018", indices: ["arica"] },
   { ciudad: "Iquique", zona: "Norte", ema: "200006", indices: ["iquique"] },
   { ciudad: "Antofagasta", zona: "Norte", ema: "230002", indices: ["antofagasta"] },
   { ciudad: "Copiapó", zona: "Norte", ema: "270009", indices: ["copiapo"] },
   { ciudad: "La Serena", zona: "Norte", ema: "290004", indices: ["serena"] },
-  { ciudad: "Valparaíso", zona: "Centro", directemar: true, indices: ["valpo"] },
   { ciudad: "Viña del Mar", zona: "Centro", ema: "330007", indices: ["vdelmar"] },
   { ciudad: "Rancagua", zona: "Centro", ema: "340045", indices: ["rancagua"] },
   { ciudad: "Talca", zona: "Centro", ema: "350028", indices: ["talca"] },
@@ -36,27 +54,14 @@ const CITIES = [
 ];
 
 const BOLETIN_STATIONS = [
+  ["quinta normal", "Quinta Normal"],
+  ["pudahuel", "Pudahuel"],
   ["chacalluta", "Arica"],
   ["diego aracena", "Iquique"],
   ["cerro moreno", "Antofagasta"],
   ["desierto de atacama", "Copiapó"],
   ["caldera", "Copiapó"],
   ["la florida", "La Serena"],
-
-  // VALPARAÍSO — Faro Punta Ángeles
-  ["punta angeles faro", "Valparaíso"],
-  ["punta ángeles faro", "Valparaíso"],
-  ["punta ãngeles faro", "Valparaíso"],
-  ["punta Ãngeles faro", "Valparaíso"],
-  ["faro punta angeles", "Valparaíso"],
-  ["faro punta ángeles", "Valparaíso"],
-  ["angeles faro", "Valparaíso"],
-  ["ángeles faro", "Valparaíso"],
-  ["punta angeles", "Valparaíso"],
-  ["punta ángeles", "Valparaíso"],
-  ["punta ãngeles", "Valparaíso"],
-  ["punta Ãngeles", "Valparaíso"],
-
   ["rodelillo", "Viña del Mar"],
   ["rancagua", "Rancagua"],
   ["panguilemo", "Talca"],
@@ -77,26 +82,19 @@ const BOLETIN_STATIONS = [
   ["balmaceda", "Coyhaique"],
   ["carlos ibanez", "Punta Arenas"],
   ["carlos ibañez", "Punta Arenas"],
-
-  // JUAN FERNÁNDEZ
   ["robinson crusoe", "Juan Fernández"],
   ["juan fernández, estación meteorológica", "Juan Fernández"],
   ["juan fernandez, estacion meteorologica", "Juan Fernández"],
   ["juan fernã¡ndez", "Juan Fernández"],
-  ["estaciã³n meteorolã³gica", "Juan Fernández"],
   ["juan fernandez", "Juan Fernández"],
   ["juan fernández", "Juan Fernández"],
   ["juan fern", "Juan Fernández"],
-
-  // RAPA NUI
   ["mataveri isla de pascua ap", "Rapa Nui"],
   ["mataveri isla de pascua", "Rapa Nui"],
   ["isla de pascua ap", "Rapa Nui"],
   ["mataveri", "Rapa Nui"],
   ["isla de pascua", "Rapa Nui"],
   ["pascua", "Rapa Nui"],
-
-  // REY JORGE
   ["frei montalva", "Rey Jorge"],
   ["marsh", "Rey Jorge"],
   ["antartica", "Rey Jorge"],
@@ -166,6 +164,16 @@ function tramoHorarioChile() {
   return 3;
 }
 
+function diaNombreChile(offset) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  const name = new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    weekday: "long",
+  }).format(d);
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 async function fetchText(url) {
   const res = await fetch(url, {
     headers: {
@@ -186,23 +194,48 @@ function parsePronostico(jsText) {
     const indice = block.match(/indice\s*:\s*["']([^"']+)["']/)?.[1];
     if (!indice) continue;
 
-    const tempStr =
-      block.match(/temperatura\s*:\s*\[\s*["']([^"']*)["']/)?.[1] || "";
+    const tempBlock =
+      block.match(/temperatura\s*:\s*\[([\s\S]*?)\]/)?.[1] || "";
+    const tempItems = [...tempBlock.matchAll(/["']([^"']*)["']/g)].map((m) =>
+      normalizeText(m[1])
+    );
+
+    const tempStr = tempItems[0] || "";
     const [minStr, maxStr] = tempStr.split("/");
     const tmin = minStr ? toNumber(minStr) : null;
     const tmax = maxStr ? toNumber(maxStr) : null;
 
-    const textoMatch = block.match(/texto\s*:\s*\[\s*\[([\s\S]*?)\]\s*,/);
-    const textoItems = textoMatch
-      ? [...textoMatch[1].matchAll(/["']([^"']*)["']/g)].map((m) =>
+    const textoOuter =
+      block.match(/texto\s*:\s*\[([\s\S]*?)\]\s*,\s*redaccion/)?.[1] || "";
+    const textoArrays = [];
+    const arrayRe = /\[([\s\S]*?)\]/g;
+    let arrM;
+    while ((arrM = arrayRe.exec(textoOuter)) !== null) {
+      textoArrays.push(
+        [...arrM[1].matchAll(/["']([^"']*)["']/g)].map((m) =>
           normalizeText(m[1])
         )
-      : [];
+      );
+    }
 
+    const todayTexts = textoArrays[0] || [];
     const condicion =
-      textoItems[tramo] || textoItems.find((x) => x && x.trim()) || null;
+      todayTexts[tramo] || todayTexts.find((x) => x && x.trim()) || null;
 
-    out[indice] = { tmin, tmax, condicion, categoria: normalizarCategoria(condicion) };
+    const forecast_5d = tempItems.slice(0, 5).map((temp, i) => {
+      const [mn, mx] = String(temp || "").split("/");
+      const texts = textoArrays[i] || [];
+      const c = texts[tramo] || texts.find((x) => x && x.trim()) || condicion || null;
+      return {
+        dia: i === 0 ? "Hoy" : diaNombreChile(i),
+        tmin: mn ? toNumber(mn) : null,
+        tmax: mx ? toNumber(mx) : null,
+        condicion: c,
+        categoria: normalizarCategoria(c),
+      };
+    });
+
+    out[indice] = { tmin, tmax, condicion, categoria: normalizarCategoria(condicion), forecast_5d };
   }
   return out;
 }
@@ -283,6 +316,32 @@ function parseBoletin(html) {
   return out;
 }
 
+async function buildStationRow(station, pronostico, boletin) {
+  let tact = null;
+  try {
+    tact = parseEmaTemperature(await fetchText(EMA_BASE + station.ema));
+  } catch {
+    tact = null;
+  }
+
+  const p = pickPronostico(pronostico, station.indices);
+  const b = boletin[station.ciudad] || {};
+
+  return {
+    ciudad: station.ciudad,
+    label: station.label || station.ciudad,
+    zona: station.zona,
+    tact,
+    tmin: p.tmin ?? b.tmin ?? null,
+    tmax: p.tmax ?? null,
+    condicion: p.condicion ?? null,
+    categoria: p.categoria ?? null,
+    pp_dia:  b.pp_dia  ?? null,
+    pp_acum: b.pp_acum ?? null,
+    def_sup: b.def_sup ?? null,
+  };
+}
+
 async function buildWeatherJson() {
   const [pronosticoSettled, boletinSettled] = await Promise.allSettled([
     fetchText(PRONOSTICO_URL),
@@ -298,6 +357,18 @@ async function buildWeatherJson() {
     boletinSettled.status === "fulfilled"
       ? parseBoletin(boletinSettled.value)
       : {};
+
+  const santiagoPronostico = pickPronostico(pronostico, ["stgo", "santiago"]) || {};
+
+  const santiagoStations = await Promise.all(
+    SANTIAGO_STATIONS.map((station) => buildStationRow(station, pronostico, boletin))
+  );
+
+  const santiago = {
+    quinta_normal: santiagoStations.find((x) => x.ciudad === "Quinta Normal") || null,
+    pudahuel:      santiagoStations.find((x) => x.ciudad === "Pudahuel")      || null,
+    forecast_5d:   santiagoPronostico.forecast_5d || [],
+  };
 
   const rows = await Promise.all(
     CITIES.map(async (c) => {
@@ -330,17 +401,18 @@ async function buildWeatherJson() {
     })
   );
 
-  return rows;
+  return { santiago, data: rows };
 }
 
 export default async function handler(req, res) {
   try {
-    const data = await buildWeatherJson();
+    const result = await buildWeatherJson();
     res.setHeader("Cache-Control", "no-store, max-age=0");
     res.status(200).json({
       updated_at: new Date().toISOString(),
       source: "MeteoChile + DIRECTEMAR",
-      data,
+      santiago: result.santiago,
+      data: result.data,
     });
   } catch (err) {
     res.status(500).json({
