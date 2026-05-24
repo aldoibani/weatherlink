@@ -110,6 +110,12 @@ function stripAccents(s = "") {
   return normalizeText(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+function titleCaseFromIndice(indice = "") {
+  return indice
+    .replace(/_/g, " ").replace(/-/g, " ")
+    .replace(/\b\w/g, (m) => m.toUpperCase()).trim();
+}
+
 function toNumber(v) {
   if (v === null || v === undefined) return null;
   const raw = String(v).trim();
@@ -177,14 +183,33 @@ async function fetchText(url) {
   return await res.text();
 }
 
+function extractStringField(block, fields) {
+  for (const field of fields) {
+    const re = new RegExp(`${field}\\s*:\\s*["']([^"']+)["']`, "i");
+    const m = block.match(re);
+    if (m?.[1]) return normalizeText(m[1]);
+  }
+  return null;
+}
+
+function extractPronosticoName(block, indice) {
+  const fromField = extractStringField(block, [
+    "ciudad", "nombre", "localidad", "estacion", "titulo", "title",
+  ]);
+  return fromField || titleCaseFromIndice(indice);
+}
+
 function parsePronostico(jsText) {
   const blocks = jsText.match(/Pronostico\.push\(\{[\s\S]*?\}\)/g) || [];
   const tramo = tramoHorarioChile();
   const out = {};
+  const options = [];
 
   for (const block of blocks) {
     const indice = block.match(/indice\s*:\s*["']([^"']+)["']/)?.[1];
     if (!indice) continue;
+
+    const ciudad = extractPronosticoName(block, indice);
 
     const tempBlock = block.match(/temperatura\s*:\s*\[([\s\S]*?)\]/)?.[1] || "";
     const tempItems = [...tempBlock.matchAll(/["']([^"']*)["']/g)].map((m) =>
@@ -224,6 +249,8 @@ function parsePronostico(jsText) {
     });
 
     const entry = {
+      indice,
+      ciudad,
       tmin: minHoy ? toNumber(minHoy) : null,
       tmax: maxHoy ? toNumber(maxHoy) : null,
       condicion: condicionHoy,
@@ -233,18 +260,35 @@ function parsePronostico(jsText) {
 
     out[indice] = entry;
 
+    options.push({
+      indice,
+      ciudad,
+      condicion: entry.condicion,
+      categoria: entry.categoria,
+      tmin: entry.tmin,
+      tmax: entry.tmax,
+    });
+
     const blockText = stripAccents(block).toLowerCase();
+    const indiceText = stripAccents(indice).toLowerCase();
+    const ciudadText = stripAccents(ciudad).toLowerCase();
+
     if (
       blockText.includes("santiago") ||
-      blockText.includes("quinta normal") ||
-      blockText.includes("pudahuel") ||
-      indice === "stgo" ||
-      indice === "santiago"
+      ciudadText.includes("santiago") ||
+      ciudadText.includes("quinta normal") ||
+      ciudadText.includes("pudahuel") ||
+      indiceText.includes("stgo") ||
+      indiceText.includes("santiago")
     ) {
       out.santiago = entry;
       out.stgo = entry;
     }
   }
+
+  out.__options = options
+    .filter((x) => x.ciudad && x.tmax !== null)
+    .sort((a, b) => a.ciudad.localeCompare(b.ciudad, "es"));
 
   return out;
 }
@@ -356,11 +400,7 @@ async function buildWeatherJson() {
   const santiagoPronostico =
     pickPronostico(pronostico, [
       "stgo", "santiago", "santiagocentro", "santiago-centro", "metropolitana", "rm",
-    ]) ||
-    Object.values(pronostico).find((p) =>
-      stripAccents(JSON.stringify(p)).toLowerCase().includes("santiago")
-    ) ||
-    {};
+    ]) || {};
 
   const santiagoStations = await Promise.all(
     SANTIAGO_STATIONS.map((station) => buildStationRow(station, pronostico, boletin))
@@ -377,6 +417,7 @@ async function buildWeatherJson() {
       forecast_5d:   santiagoPronostico.forecast_5d || [],
     },
     data: rows,
+    extra_forecast_options: pronostico.__options || [],
   };
 }
 
@@ -389,6 +430,7 @@ export default async function handler(req, res) {
       source: "MeteoChile",
       santiago: result.santiago,
       data: result.data,
+      extra_forecast_options: result.extra_forecast_options,
     });
   } catch (err) {
     res.status(500).json({
