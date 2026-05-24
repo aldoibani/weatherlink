@@ -815,11 +815,8 @@ export default function App() {
             </div>
           )}
           {isMobile && (
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 58px 78px 74px 62px", padding:"0 14px 8px", gap:6, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
-              <span>Ciudad</span><span style={{textAlign:"center"}}>Actual</span>
-              <span style={{textAlign:"center"}}>Mín / Máx</span>
-              <span style={{textAlign:"center"}}>vs. Normal</span>
-              <span style={{textAlign:"center"}}>Viento</span>
+            <div style={{ padding:"0 14px 8px", fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:".08em" }}>
+              Ciudades
             </div>
           )}
 
@@ -867,31 +864,59 @@ export default function App() {
                           </div>
                         </div>
                       )}
-                      {/* Mobile row */}
+                      {/* Mobile card */}
                       {isMobile && (
-                        <div key={d.ciudad+"m"} style={{ display:"grid", gridTemplateColumns:"1fr 58px 78px 74px 62px", alignItems:"center", padding:"12px 14px", gap:6, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none" }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:9 }}>
-                            <Icon cat={d.categoria} size={24}/>
-                            <span style={{ fontWeight:500, fontSize:13, letterSpacing:"-.15px" }}>{d.ciudad}</span>
+                        <div key={d.ciudad+"m"} style={{ padding:"14px 16px", borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none" }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:12 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:11, minWidth:0 }}>
+                              <Icon cat={d.categoria} size={30}/>
+                              <div style={{ minWidth:0 }}>
+                                <div style={{ fontWeight:600, fontSize:16, letterSpacing:"-.25px", color:C.text, lineHeight:1.15 }}>{d.ciudad}</div>
+                                <div style={{ fontSize:11, color:C.muted, marginTop:4, lineHeight:1.25, overflow:"hidden", textOverflow:"ellipsis", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
+                                  {d.condicion || "—"}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ textAlign:"right", flexShrink:0 }}>
+                              <div style={{ ...mono, fontSize:24, fontWeight:600, color:C.text, letterSpacing:"-.5px" }}>
+                                {d.tact !== null ? `${d.tact}°` : <span style={{ fontSize:13, color:C.border }}>—</span>}
+                              </div>
+                              <div style={{ ...mono, fontSize:12, marginTop:3 }}>
+                                <span style={{ color:"#60A5FA" }}>{fmtT(d.tmin)}</span>
+                                <span style={{ color:C.border, margin:"0 4px" }}>/</span>
+                                <span style={{ color:C.orange }}>{fmtT(d.tmax)}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ textAlign:"center", ...mono, fontSize:15, fontWeight:600, color:C.text }}>
-                            {d.tact !== null ? `${d.tact}°` : <span style={{ fontSize:11, color:C.border }}>—</span>}
-                          </div>
-                          <div style={{ textAlign:"center", ...mono, fontSize:12 }}>
-                            <span style={{ color:"#60A5FA" }}>{fmtT(d.tmin)}</span>
-                            <span style={{ color:C.border, margin:"0 3px" }}>/</span>
-                            <span style={{ color:C.orange }}>{fmtT(d.tmax)}</span>
-                          </div>
-                          <div style={{ textAlign:"center" }}>
-                            {d.def_sup === null
-                              ? <span style={{ fontSize:11, color:C.border }}>—</span>
-                              : <span style={{ display:"inline-flex", alignItems:"center", gap:2, fontSize:11, fontWeight:600, ...mono, color: sup?C.green:C.red, background: sup?C.greenBg:C.redBg, borderRadius:20, padding:"2px 7px" }}>
-                                  {sup?"▲":"▼"} {Math.abs(d.def_sup)}%
-                                </span>
-                            }
-                          </div>
-                          <div style={{ textAlign:"center", ...mono, fontSize:11, color:"#475569" }}>
-                            {fmtWind(d.viento_max)}
+
+                          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, borderTop:`1px solid ${C.border}`, paddingTop:11 }}>
+                            <div>
+                              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em", marginBottom:5 }}>PP hoy</div>
+                              <div style={{ ...mono, fontSize:12, color: d.pp_dia > 0 ? C.blue : "#475569" }}>
+                                {d.pp_dia === null ? "—" : d.pp_dia > 0 ? `${d.pp_dia} mm` : "0 mm"}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em", marginBottom:5 }}>PP año</div>
+                              <div style={{ ...mono, fontSize:12, color:"#475569" }}>{fmtN(d.pp_anio," mm")}</div>
+                            </div>
+
+                            <div>
+                              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em", marginBottom:5 }}>Vs normal</div>
+                              {d.def_sup === null
+                                ? <span style={{ fontSize:12, color:C.border }}>—</span>
+                                : <span style={{ display:"inline-flex", alignItems:"center", gap:3, fontSize:11, fontWeight:600, ...mono, color: sup?C.green:C.red, background: sup?C.greenBg:C.redBg, borderRadius:20, padding:"2px 8px", whiteSpace:"nowrap" }}>
+                                    {sup?"▲":"▼"} {Math.abs(d.def_sup)}%
+                                  </span>
+                              }
+                            </div>
+
+                            <div>
+                              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em", marginBottom:5 }}>Viento máx</div>
+                              <div style={{ ...mono, fontSize:12, color:"#475569", whiteSpace:"nowrap" }}>{fmtWind(d.viento_max)}</div>
+                            </div>
                           </div>
                         </div>
                       )}
