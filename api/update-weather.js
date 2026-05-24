@@ -73,12 +73,20 @@ const BOLETIN_STATIONS = [
   ["maquehue", "Temuco"],
   ["maquehua", "Temuco"],
   ["pichoy", "Valdivia"],
+  ["canal bajo osorno ad", "Osorno"],
+  ["cañal bajo osorno ad", "Osorno"],
+  ["canal bajo osorno", "Osorno"],
+  ["cañal bajo osorno", "Osorno"],
   ["canal bajo", "Osorno"],
   ["cañal bajo", "Osorno"],
   ["el tepual", "Puerto Montt"],
   ["tepual", "Puerto Montt"],
   ["teniente vidal", "Coyhaique"],
   ["balmaceda", "Coyhaique"],
+  ["carlos ibanez punta arenas ap", "Punta Arenas"],
+  ["carlos ibañez punta arenas ap", "Punta Arenas"],
+  ["carlos ibanez punta arenas", "Punta Arenas"],
+  ["carlos ibañez punta arenas", "Punta Arenas"],
   ["carlos ibanez", "Punta Arenas"],
   ["carlos ibañez", "Punta Arenas"],
   ["robinson crusoe", "Juan Fernández"],
@@ -105,7 +113,7 @@ function normalizeText(s = "") {
     .replace(/Ã/g, "Á").replace(/Ã¡/g, "á")
     .replace(/Ã©/g, "é").replace(/Ã­/g, "í")
     .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú")
-    .replace(/Ã±/g, "ñ")
+    .replace(/Ã±/g, "ñ").replace(/Ã/g, "Á")
     .replace(/\s+/g, " ").trim();
 }
 
