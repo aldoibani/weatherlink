@@ -42,124 +42,51 @@ const CITIES = [
   { ciudad: "Temuco", zona: "Sur", ema: "380013", indices: ["temuco"] },
   { ciudad: "Valdivia", zona: "Sur", ema: "390015", indices: ["valdivia"] },
   { ciudad: "Osorno", zona: "Sur", ema: "400013", indices: ["osorno"] },
-  { ciudad: "Puerto Montt", zona: "Sur", ema: "410005", indices: ["pmontt", "ptomontt"] },
+  { ciudad: "Puerto Montt", zona: "Sur", ema: "410005", indices: ["pmontt"] },
   { ciudad: "Coyhaique", zona: "Sur", ema: "450004", indices: ["coyhaique"] },
-  { ciudad: "Punta Arenas", zona: "Sur", ema: "520012", indices: ["parenas", "ptarenas"] },
-  { ciudad: "Juan Fernández", zona: "Insular", ema: "330031", indices: ["jfernandez", "juanfernandez"] },
-  { ciudad: "Rapa Nui", zona: "Insular", ema: "270001", indices: ["rapanui", "pascua"] },
-  { ciudad: "Rey Jorge", zona: "Insular", ema: "950001", indices: ["antartica", "reyjorge", "frei", "marsh"] },
-];
-
-const BOLETIN_STATIONS = [
-  ["quinta normal", "Quinta Normal"],
-  ["pudahuel", "Pudahuel"],
-  ["chacalluta", "Arica"],
-  ["diego aracena", "Iquique"],
-  ["cerro moreno", "Antofagasta"],
-  ["desierto de atacama", "Copiapó"],
-  ["caldera", "Copiapó"],
-  ["la florida", "La Serena"],
-  ["rodelillo", "Viña del Mar"],
-  ["rancagua", "Rancagua"],
-  ["panguilemo", "Talca"],
-  ["talca", "Talca"],
-  ["general bernardo", "Chillán"],
-  ["chillan", "Chillán"],
-  ["chillán", "Chillán"],
-  ["carriel", "Concepción"],
-  ["maquehue", "Temuco"],
-  ["maquehua", "Temuco"],
-  ["pichoy", "Valdivia"],
-  ["canal bajo", "Osorno"],
-  ["cañal bajo", "Osorno"],
-  ["el tepual", "Puerto Montt"],
-  ["tepual", "Puerto Montt"],
-  ["teniente vidal", "Coyhaique"],
-  ["balmaceda", "Coyhaique"],
-  ["carlos ibanez", "Punta Arenas"],
-  ["carlos ibañez", "Punta Arenas"],
-  ["robinson crusoe", "Juan Fernández"],
-  ["juan fernández", "Juan Fernández"],
-  ["juan fernandez", "Juan Fernández"],
-  ["juan fern", "Juan Fernández"],
-  ["mataveri isla de pascua ap", "Rapa Nui"],
-  ["mataveri isla de pascua", "Rapa Nui"],
-  ["isla de pascua ap", "Rapa Nui"],
-  ["mataveri", "Rapa Nui"],
-  ["pascua", "Rapa Nui"],
-  ["frei montalva", "Rey Jorge"],
-  ["marsh", "Rey Jorge"],
-  ["antartica", "Rey Jorge"],
-  ["antártica", "Rey Jorge"],
+  { ciudad: "Punta Arenas", zona: "Sur", ema: "520012", indices: ["parenas"] },
+  { ciudad: "Juan Fernández", zona: "Insular", ema: "330031", indices: ["jfernandez"] },
+  { ciudad: "Rapa Nui", zona: "Insular", ema: "270001", indices: ["rapanui"] },
+  { ciudad: "Rey Jorge", zona: "Insular", ema: "950001", indices: ["antartica"] },
 ];
 
 function normalizeText(s = "") {
   return String(s)
-    .replace(/&aacute;/g, "á").replace(/&eacute;/g, "é")
-    .replace(/&iacute;/g, "í").replace(/&oacute;/g, "ó")
-    .replace(/&uacute;/g, "ú").replace(/&ntilde;/g, "ñ")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-    .replace(/Ã/g, "Á").replace(/Ã¡/g, "á")
-    .replace(/Ã©/g, "é").replace(/Ã­/g, "í")
-    .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú")
-    .replace(/Ã±/g, "ñ")
-    .replace(/\s+/g, " ").trim();
+    .replace(/&aacute;/g, "á")
+    .replace(/&eacute;/g, "é")
+    .replace(/&iacute;/g, "í")
+    .replace(/&oacute;/g, "ó")
+    .replace(/&uacute;/g, "ú")
+    .replace(/&ntilde;/g, "ñ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function stripAccents(s = "") {
-  return normalizeText(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
-function titleCaseFromIndice(indice = "") {
-  return indice
-    .replace(/_/g, " ").replace(/-/g, " ")
-    .replace(/\b\w/g, (m) => m.toUpperCase()).trim();
+  return normalizeText(s)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function toNumber(v) {
   if (v === null || v === undefined) return null;
   const raw = String(v).trim();
-  if (!raw || raw === "-" || raw === "." || /^S\/P$/i.test(raw)) return null;
+  if (!raw || raw === "-" || /^S\/P$/i.test(raw)) return null;
   const x = Number(raw.replace(",", ".").replace(/[^\d.\-]/g, ""));
   return Number.isFinite(x) ? x : null;
 }
 
-function numberOrZeroIfSP(v) {
-  if (v === null || v === undefined) return null;
-  if (/^S\/P$/i.test(String(v).trim())) return 0;
-  return toNumber(v);
-}
-
 function normalizarCategoria(texto) {
-  if (!texto) return null;
+  if (!texto) return "NUBLADO";
   const t = stripAccents(texto).toLowerCase();
-  if (t.includes("tormenta") && t.includes("lluvia")) return "TORMENTA ELÉCTRICA CON LLUVIA";
-  if (t.includes("tormenta")) return "TORMENTA ELÉCTRICA";
-  if (t.includes("aguanieve")) return "AGUANIEVE";
-  if (t.includes("nieve")) return "NIEVE";
-  if (t.includes("lluvia fuerte")) return "LLUVIA FUERTE";
-  if (t.includes("llovizna")) return "LLOVIZNA";
+  if (t.includes("despejado")) return "DESPEJADO";
+  if (t.includes("parcial")) return "PARCIAL";
+  if (t.includes("cubierto")) return "CUBIERTO";
+  if (t.includes("chubasco")) return "CHUBASCOS";
   if (t.includes("lluvia")) return "LLUVIA";
   if (t.includes("niebla")) return "NIEBLA";
-  if (t.includes("neblina")) return "NEBLINA";
-  if (t.includes("cubierto")) return "CUBIERTO";
-  if (t.includes("nublado")) return "NUBLADO";
-  if (t.includes("parcial")) return "PARCIAL";
-  if (t.includes("despejado")) return "DESPEJADO";
   return "NUBLADO";
-}
-
-function tramoHorarioChile() {
-  const h = Number(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/Santiago",
-      hour: "2-digit",
-      hour12: false,
-    }).format(new Date())
-  );
-  if (h >= 6 && h < 12) return 1;
-  if (h >= 12 && h < 18) return 2;
-  return 3;
 }
 
 function diaNombreChile(offset) {
@@ -169,208 +96,133 @@ function diaNombreChile(offset) {
     timeZone: "America/Santiago",
     weekday: "long",
   }).format(d);
-  return name.charAt(0).toUpperCase() + name.slice(1);
+  return offset === 0
+    ? "Hoy"
+    : name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 async function fetchText(url) {
   const res = await fetch(url, {
-    headers: {
-      "User-Agent": "WeatherLink/1.0",
-      Accept: "text/html,application/javascript,*/*",
-    },
+    headers: { "User-Agent": "WeatherLink/1.0" },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.text();
-}
-
-function extractStringField(block, fields) {
-  for (const field of fields) {
-    const re = new RegExp(`${field}\\s*:\\s*["']([^"']+)["']`, "i");
-    const m = block.match(re);
-    if (m?.[1]) return normalizeText(m[1]);
-  }
-  return null;
-}
-
-function extractPronosticoName(block, indice) {
-  const fromField = extractStringField(block, [
-    "ciudad", "nombre", "localidad", "estacion", "titulo", "title",
-  ]);
-  return fromField || titleCaseFromIndice(indice);
 }
 
 function parsePronostico(jsText) {
   const blocks = jsText.match(/Pronostico\.push\(\{[\s\S]*?\}\)/g) || [];
-  const tramo = tramoHorarioChile();
   const out = {};
-  const options = [];
 
   for (const block of blocks) {
     const indice = block.match(/indice\s*:\s*["']([^"']+)["']/)?.[1];
     if (!indice) continue;
 
-    const ciudad = extractPronosticoName(block, indice);
+    const ciudad =
+      block.match(/ciudad\s*:\s*["']([^"']+)["']/)?.[1] || indice;
 
-    const tempBlock = block.match(/temperatura\s*:\s*\[([\s\S]*?)\]/)?.[1] || "";
-    const tempItems = [...tempBlock.matchAll(/["']([^"']*)["']/g)].map((m) =>
-      normalizeText(m[1])
+    const tempBlock =
+      block.match(/temperatura\s*:\s*\[([\s\S]*?)\]/)?.[1] || "";
+    const tempItems = [...tempBlock.matchAll(/["']([^"']*)["']/g)].map(
+      (m) => normalizeText(m[1])
     );
 
-    const textoOuter =
+    const textoBlock =
       block.match(/texto\s*:\s*\[([\s\S]*?)\]\s*,\s*redaccion/)?.[1] || "";
-    const textoArrays = [];
-    const arrayRe = /\[([\s\S]*?)\]/g;
-    let arrM;
-    while ((arrM = arrayRe.exec(textoOuter)) !== null) {
-      textoArrays.push(
-        [...arrM[1].matchAll(/["']([^"']*)["']/g)].map((m) => normalizeText(m[1]))
-      );
-    }
+    const textoItems = [...textoBlock.matchAll(/["']([^"']+)["']/g)].map(
+      (m) => normalizeText(m[1])
+    );
 
-    const tempHoy = tempItems[0] || "";
-    const [minHoy, maxHoy] = tempHoy.split("/");
-
-    const todayTexts = textoArrays[0] || [];
-    const condicionHoy =
-      todayTexts[tramo] || todayTexts.find((x) => x && x.trim()) || null;
-
-    const forecast_5d = tempItems.slice(0, 5).map((temp, i) => {
-      const [mn, mx] = String(temp || "").split("/");
-      const texts = textoArrays[i] || [];
-      const condicion =
-        texts[tramo] || texts.find((x) => x && x.trim()) || condicionHoy || null;
-      return {
-        dia: i === 0 ? "Hoy" : diaNombreChile(i),
-        tmin: mn ? toNumber(mn) : null,
-        tmax: mx ? toNumber(mx) : null,
+    const forecast_5d = [];
+    for (let i = 0; i < 5; i++) {
+      const [mn, mx] = String(tempItems[i] || "").split("/");
+      const condicion = textoItems[i] || textoItems[0] || "Nublado";
+      forecast_5d.push({
+        dia: diaNombreChile(i),
+        tmin: toNumber(mn),
+        tmax: toNumber(mx),
         condicion,
         categoria: normalizarCategoria(condicion),
-      };
-    });
+      });
+    }
 
-    const entry = {
-      indice,
+    out[indice] = {
       ciudad,
-      tmin: minHoy ? toNumber(minHoy) : null,
-      tmax: maxHoy ? toNumber(maxHoy) : null,
-      condicion: condicionHoy,
-      categoria: normalizarCategoria(condicionHoy),
+      tmin: forecast_5d[0]?.tmin ?? null,
+      tmax: forecast_5d[0]?.tmax ?? null,
+      condicion: forecast_5d[0]?.condicion ?? null,
+      categoria: forecast_5d[0]?.categoria ?? null,
       forecast_5d,
     };
-
-    out[indice] = entry;
-
-    options.push({
-      indice,
-      ciudad,
-      condicion: entry.condicion,
-      categoria: entry.categoria,
-      tmin: entry.tmin,
-      tmax: entry.tmax,
-    });
-
-    const blockText = stripAccents(block).toLowerCase();
-    const indiceText = stripAccents(indice).toLowerCase();
-    const ciudadText = stripAccents(ciudad).toLowerCase();
-
-    if (
-      blockText.includes("santiago") ||
-      ciudadText.includes("santiago") ||
-      ciudadText.includes("quinta normal") ||
-      ciudadText.includes("pudahuel") ||
-      indiceText.includes("stgo") ||
-      indiceText.includes("santiago")
-    ) {
-      out.santiago = entry;
-      out.stgo = entry;
-    }
   }
-
-  out.__options = options
-    .filter((x) => x.ciudad && x.tmax !== null)
-    .sort((a, b) => a.ciudad.localeCompare(b.ciudad, "es"));
 
   return out;
 }
 
-function pickPronostico(pronostico, indices = []) {
-  for (const idx of indices) {
-    if (pronostico[idx]) return pronostico[idx];
-  }
-  return {};
-}
-
 function parseEmaTemperature(html) {
   const text = normalizeText(html.replace(/<[^>]+>/g, " "));
-  const patterns = [
-    /Temperatura del Aire en °C\s*([\-]?\d+(?:[,.]\d+)?)/i,
-    /Temperatura del Aire.*?([\-]?\d+(?:[,.]\d+)?)/i,
-    /Temperatura.*?([\-]?\d+(?:[,.]\d+)?)\s*°?\s*C/i,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (m) return toNumber(m[1]);
-  }
-  return null;
+  const m = text.match(/Temperatura del Aire.*?([\-]?\d+(?:[,.]\d+)?)/i);
+  return m ? toNumber(m[1]) : null;
 }
 
 function parseEmaWindMax(html) {
-  const text = stripAccents(normalizeText(html.replace(/<[^>]+>/g, " "))).toLowerCase();
+  const text = stripAccents(
+    normalizeText(html.replace(/<[^>]+>/g, " "))
+  ).toLowerCase();
 
-  // Formato real MeteoChile:
-  // Viento Máximo
-  // Hoy 360/10 (07:22) 360/18 (07:22)
-  // Primera dupla: °/kt — Segunda dupla: °/kmh
-  // Retornamos el segundo valor de la segunda dupla (kmh)
-  const hoyMatch = text.match(
-    /viento maximo[\s\S]*?hoy\s+(\d+)\/(\d+)[^\d]+(\d+)\/(\d+)/
-  );
-  if (hoyMatch) return toNumber(hoyMatch[4]);
-
-  const fallback = text.match(/hoy\s+\d+\/\d+[^\d]+\d+\/(\d+)/);
-  if (fallback) return toNumber(fallback[1]);
+  const section = text.match(/viento maximo[\s\S]*?hoy\s+([\s\S]*?)ayer/);
+  if (section?.[1]) {
+    const pairs = [...section[1].matchAll(/\b\d{1,3}\/(\d+(?:[,.]\d+)?)/g)];
+    if (pairs[1]?.[1]) return toNumber(pairs[1][1]);
+  }
 
   return null;
-}
-
-function cityFromStationName(stationName) {
-  const clean = stripAccents(stationName).toLowerCase();
-  for (const [key, city] of BOLETIN_STATIONS) {
-    const k = stripAccents(key).toLowerCase();
-    if (clean.includes(k)) return city;
-  }
-  return null;
-}
-
-function extractCells(rowHtml) {
-  const cells = [];
-  const cellRe = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
-  let m;
-  while ((m = cellRe.exec(rowHtml)) !== null) {
-    cells.push(normalizeText(m[1].replace(/<[^>]+>/g, " ")));
-  }
-  return cells;
 }
 
 function parseBoletin(html) {
   const out = {};
-  const rowRe = /<tr[\s\S]*?<\/tr>/gi;
-  let rowMatch;
+  const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) || [];
 
-  while ((rowMatch = rowRe.exec(html)) !== null) {
-    const cells = extractCells(rowMatch[0]);
+  for (const row of rows) {
+    const cells = [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+      .map((m) => normalizeText(m[1].replace(/<[^>]+>/g, " ")));
+
     if (cells.length < 10) continue;
 
-    const city = cityFromStationName(cells[0]);
+    const station = stripAccents(cells[0]).toLowerCase();
+    let city = null;
+
+    if (station.includes("chacalluta"))       city = "Arica";
+    else if (station.includes("diego aracena")) city = "Iquique";
+    else if (station.includes("cerro moreno"))  city = "Antofagasta";
+    else if (station.includes("atacama"))       city = "Copiapó";
+    else if (station.includes("la florida"))    city = "La Serena";
+    else if (station.includes("rodelillo"))     city = "Viña del Mar";
+    else if (station.includes("rancagua"))      city = "Rancagua";
+    else if (station.includes("talca"))         city = "Talca";
+    else if (station.includes("chillan"))       city = "Chillán";
+    else if (station.includes("carriel"))       city = "Concepción";
+    else if (station.includes("maquehue"))      city = "Temuco";
+    else if (station.includes("pichoy"))        city = "Valdivia";
+    else if (station.includes("canal bajo"))    city = "Osorno";
+    else if (station.includes("tepual"))        city = "Puerto Montt";
+    else if (station.includes("balmaceda"))     city = "Coyhaique";
+    else if (station.includes("ibanez"))        city = "Punta Arenas";
+    else if (station.includes("fernandez"))     city = "Juan Fernández";
+    else if (station.includes("mataveri"))      city = "Rapa Nui";
+    else if (station.includes("frei"))          city = "Rey Jorge";
+    else if (station.includes("quinta normal")) city = "Quinta Normal";
+    else if (station.includes("pudahuel"))      city = "Pudahuel";
+
     if (!city) continue;
 
     out[city] = {
       tmin:    toNumber(cells[1]),
-      pp_dia:  numberOrZeroIfSP(cells[5]),
-      pp_acum: numberOrZeroIfSP(cells[6]),
-      def_sup: /^S\/P$/i.test(cells[9]) ? null : toNumber(cells[9]),
+      pp_dia:  toNumber(cells[5]) ?? 0,
+      pp_acum: toNumber(cells[6]),
+      def_sup: toNumber(cells[9]),
     };
   }
+
   return out;
 }
 
@@ -382,12 +234,9 @@ async function buildStationRow(station, pronostico, boletin) {
     const emaHtml = await fetchText(EMA_BASE + station.ema);
     tact = parseEmaTemperature(emaHtml);
     viento_max = parseEmaWindMax(emaHtml);
-  } catch {
-    tact = null;
-    viento_max = null;
-  }
+  } catch {}
 
-  const p = pickPronostico(pronostico, station.indices);
+  const p = pronostico[station.indices[0]] || {};
   const b = boletin[station.ciudad] || {};
 
   return {
@@ -406,56 +255,42 @@ async function buildStationRow(station, pronostico, boletin) {
   };
 }
 
-async function buildWeatherJson() {
-  const [pronosticoSettled, boletinSettled] = await Promise.allSettled([
-    fetchText(PRONOSTICO_URL),
-    fetchText(BOLETIN_URL),
-  ]);
-
-  const pronostico =
-    pronosticoSettled.status === "fulfilled"
-      ? parsePronostico(pronosticoSettled.value)
-      : {};
-
-  const boletin =
-    boletinSettled.status === "fulfilled"
-      ? parseBoletin(boletinSettled.value)
-      : {};
-
-  const santiagoPronostico =
-    pickPronostico(pronostico, [
-      "stgo", "santiago", "santiagocentro", "santiago-centro", "metropolitana", "rm",
-    ]) || {};
-
-  const santiagoStations = await Promise.all(
-    SANTIAGO_STATIONS.map((station) => buildStationRow(station, pronostico, boletin))
-  );
-
-  const rows = await Promise.all(
-    CITIES.map((c) => buildStationRow(c, pronostico, boletin))
-  );
-
-  return {
-    santiago: {
-      quinta_normal: santiagoStations.find((x) => x.ciudad === "Quinta Normal") || null,
-      pudahuel:      santiagoStations.find((x) => x.ciudad === "Pudahuel")      || null,
-      forecast_5d:   santiagoPronostico.forecast_5d || [],
-    },
-    data: rows,
-    extra_forecast_options: pronostico.__options || [],
-  };
-}
-
 export default async function handler(req, res) {
   try {
-    const result = await buildWeatherJson();
-    res.setHeader("Cache-Control", "no-store, max-age=0");
+    const [pronosticoText, boletinHtml] = await Promise.all([
+      fetchText(PRONOSTICO_URL),
+      fetchText(BOLETIN_URL),
+    ]);
+
+    const pronostico = parsePronostico(pronosticoText);
+    const boletin = parseBoletin(boletinHtml);
+
+    const santiagoStations = await Promise.all(
+      SANTIAGO_STATIONS.map((s) => buildStationRow(s, pronostico, boletin))
+    );
+
+    const rows = await Promise.all(
+      CITIES.map((c) => buildStationRow(c, pronostico, boletin))
+    );
+
+    const stgoForecast =
+      pronostico["stgo"]?.forecast_5d ||
+      pronostico["santiago"]?.forecast_5d ||
+      [];
+
+    res.setHeader("Cache-Control", "no-store");
+
     res.status(200).json({
       updated_at: new Date().toISOString(),
       source: "MeteoChile",
-      santiago: result.santiago,
-      data: result.data,
-      extra_forecast_options: result.extra_forecast_options,
+      santiago: {
+        quinta_normal:
+          santiagoStations.find((x) => x.ciudad === "Quinta Normal") || null,
+        pudahuel:
+          santiagoStations.find((x) => x.ciudad === "Pudahuel") || null,
+        forecast_5d: stgoForecast,
+      },
+      data: rows,
     });
   } catch (err) {
     res.status(500).json({
