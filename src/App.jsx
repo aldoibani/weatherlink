@@ -661,7 +661,15 @@ export default function App() {
 
       {/* ── Tab: Condición actual ───────────────────────────────────────────── */}
       {tab === "condicion" && (
-        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth:1480, margin:"0 auto", width:"100%" }}>
+        <main
+          style={{
+            padding: isMobile ? "12px 12px" : "22px 28px",
+            maxWidth: isMobile ? "100%" : "calc(100vw - 32px)",
+            width: "100%",
+            margin: "0 auto",
+            boxSizing: "border-box",
+          }}
+        >
 
           {/* Toolbar */}
           <div style={{ marginBottom: isMobile ? 12 : 18 }}>
@@ -936,7 +944,15 @@ export default function App() {
 
       {/* ── Tab: Generar pronóstico ─────────────────────────────────────────── */}
       {tab === "pronostico" && (
-        <main style={{ padding:"40px 28px", maxWidth:760, margin:"0 auto" }}>
+        <main
+          style={{
+            padding: isMobile ? "20px 12px" : "40px 28px",
+            maxWidth: isMobile ? "100%" : "calc(100vw - 32px)",
+            width: "100%",
+            margin: "0 auto",
+            boxSizing: "border-box",
+          }}
+        >
           <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
             <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:14 }}>Contenido del archivo</div>
             <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico nacional · {data.filter(d=>d.zona!=="Santiago").length} ciudades</div>
