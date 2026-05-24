@@ -73,22 +73,22 @@ const BOLETIN_STATIONS = [
   ["maquehue", "Temuco"],
   ["maquehua", "Temuco"],
   ["pichoy", "Valdivia"],
-  ["canal bajo osorno ad", "Osorno"],
-  ["cañal bajo osorno ad", "Osorno"],
-  ["canal bajo osorno", "Osorno"],
-  ["cañal bajo osorno", "Osorno"],
   ["canal bajo", "Osorno"],
   ["cañal bajo", "Osorno"],
+  ["canal bajo osorno", "Osorno"],
+  ["cañal bajo osorno", "Osorno"],
+  ["canal bajo osorno ad", "Osorno"],
+  ["cañal bajo osorno ad", "Osorno"],
   ["el tepual", "Puerto Montt"],
   ["tepual", "Puerto Montt"],
   ["teniente vidal", "Coyhaique"],
   ["balmaceda", "Coyhaique"],
-  ["carlos ibanez punta arenas ap", "Punta Arenas"],
-  ["carlos ibañez punta arenas ap", "Punta Arenas"],
-  ["carlos ibanez punta arenas", "Punta Arenas"],
-  ["carlos ibañez punta arenas", "Punta Arenas"],
   ["carlos ibanez", "Punta Arenas"],
   ["carlos ibañez", "Punta Arenas"],
+  ["carlos ibanez punta arenas", "Punta Arenas"],
+  ["carlos ibañez punta arenas", "Punta Arenas"],
+  ["carlos ibanez punta arenas ap", "Punta Arenas"],
+  ["carlos ibañez punta arenas ap", "Punta Arenas"],
   ["robinson crusoe", "Juan Fernández"],
   ["juan fernández", "Juan Fernández"],
   ["juan fernandez", "Juan Fernández"],
@@ -105,7 +105,9 @@ const BOLETIN_STATIONS = [
 ];
 
 function normalizeText(s = "") {
-  return String(s)
+  let text = String(s);
+  try { text = decodeURIComponent(escape(text)); } catch {}
+  return text
     .replace(/&aacute;/g, "á").replace(/&eacute;/g, "é")
     .replace(/&iacute;/g, "í").replace(/&oacute;/g, "ó")
     .replace(/&uacute;/g, "ú").replace(/&ntilde;/g, "ñ")
@@ -119,6 +121,13 @@ function normalizeText(s = "") {
 
 function stripAccents(s = "") {
   return normalizeText(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function stationKey(s = "") {
+  return stripAccents(normalizeText(s))
+    .toLowerCase()
+    .replace(/[.,;:()]/g, " ")
+    .replace(/\s+/g, " ").trim();
 }
 
 function titleCaseFromIndice(indice = "") {
@@ -141,6 +150,11 @@ function numberOrZeroIfSP(v) {
   return toNumber(v);
 }
 
+function parseMaybeNumber(v) {
+  return v !== undefined && v !== null && String(v).trim() !== ""
+    ? toNumber(v) : null;
+}
+
 function normalizarCategoria(texto) {
   if (!texto) return null;
   const t = stripAccents(texto).toLowerCase();
@@ -149,13 +163,16 @@ function normalizarCategoria(texto) {
   if (t.includes("aguanieve")) return "AGUANIEVE";
   if (t.includes("nieve")) return "NIEVE";
   if (t.includes("lluvia fuerte")) return "LLUVIA FUERTE";
+  if (t.includes("lluvia debil") || t.includes("chubascos debiles")) return "LLUVIA DÉBIL";
+  if (t.includes("intermitente") && t.includes("lluvia")) return "LLUVIA INTERMITENTE";
   if (t.includes("llovizna")) return "LLOVIZNA";
-  if (t.includes("lluvia")) return "LLUVIA";
+  if (t.includes("lluvia") || t.includes("chubascos")) return "LLUVIA";
   if (t.includes("niebla")) return "NIEBLA";
   if (t.includes("neblina")) return "NEBLINA";
   if (t.includes("cubierto")) return "CUBIERTO";
   if (t.includes("nublado")) return "NUBLADO";
   if (t.includes("parcial")) return "PARCIAL";
+  if (t.includes("escasa nubosidad")) return "ESCASA NUBOSIDAD";
   if (t.includes("despejado")) return "DESPEJADO";
   return "NUBLADO";
 }
@@ -252,8 +269,8 @@ function parsePronostico(jsText) {
         texts[tramo] || texts.find((x) => x && x.trim()) || condicionHoy || null;
       return {
         dia: i === 0 ? "Hoy" : diaNombreChile(i),
-        tmin: mn ? toNumber(mn) : null,
-        tmax: mx ? toNumber(mx) : null,
+        tmin: parseMaybeNumber(mn),
+        tmax: parseMaybeNumber(mx),
         condicion,
         categoria: normalizarCategoria(condicion),
       };
@@ -262,8 +279,8 @@ function parsePronostico(jsText) {
     const entry = {
       indice,
       ciudad,
-      tmin: minHoy ? toNumber(minHoy) : null,
-      tmax: maxHoy ? toNumber(maxHoy) : null,
+      tmin: parseMaybeNumber(minHoy),
+      tmax: parseMaybeNumber(maxHoy),
       condicion: condicionHoy,
       categoria: normalizarCategoria(condicionHoy),
       forecast_5d,
@@ -336,10 +353,16 @@ function parseEmaWindMax(html) {
   return null;
 }
 
-function cityFromStationName(stationName) {
-  const clean = stripAccents(stationName).toLowerCase();
+function cityFromStationName(stationName, rowText = "") {
+  const clean = stationKey(`${stationName} ${rowText}`);
+
+  if (clean.includes("canal bajo") && clean.includes("osorno")) return "Osorno";
+  if (clean.includes("canal bajo osorno")) return "Osorno";
+  if (clean.includes("carlos ibanez") && clean.includes("punta arenas")) return "Punta Arenas";
+  if (clean.includes("carlos ibanez punta arenas")) return "Punta Arenas";
+
   for (const [key, city] of BOLETIN_STATIONS) {
-    const k = stripAccents(key).toLowerCase();
+    const k = stationKey(key);
     if (clean.includes(k)) return city;
   }
   return null;
@@ -364,7 +387,8 @@ function parseBoletin(html) {
     const cells = extractCells(rowMatch[0]);
     if (cells.length < 10) continue;
 
-    const city = cityFromStationName(cells[0]);
+    const rowText = cells.join(" ");
+    const city = cityFromStationName(cells[0], rowText);
     if (!city) continue;
 
     out[city] = {
