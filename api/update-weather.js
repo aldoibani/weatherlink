@@ -18,21 +18,18 @@ const CITIES = [
   { ciudad: "Antofagasta", zona: "Norte", ema: "230002", indices: ["antofagasta"] },
   { ciudad: "Copiapó", zona: "Norte", ema: "270009", indices: ["copiapo"] },
   { ciudad: "La Serena", zona: "Norte", ema: "290004", indices: ["serena"] },
-
   { ciudad: "Valparaíso", zona: "Centro", directemar: true, indices: ["valpo"] },
   { ciudad: "Viña del Mar", zona: "Centro", ema: "330007", indices: ["vdelmar"] },
   { ciudad: "Rancagua", zona: "Centro", ema: "340045", indices: ["rancagua"] },
   { ciudad: "Talca", zona: "Centro", ema: "350028", indices: ["talca"] },
   { ciudad: "Chillán", zona: "Centro", ema: "360011", indices: ["chillan"] },
   { ciudad: "Concepción", zona: "Centro", ema: "360019", indices: ["concepcion"] },
-
   { ciudad: "Temuco", zona: "Sur", ema: "380013", indices: ["temuco"] },
   { ciudad: "Valdivia", zona: "Sur", ema: "390015", indices: ["valdivia"] },
   { ciudad: "Osorno", zona: "Sur", ema: "400013", indices: ["osorno"] },
   { ciudad: "Puerto Montt", zona: "Sur", ema: "410005", indices: ["pmontt", "ptomontt"] },
   { ciudad: "Coyhaique", zona: "Sur", ema: "450004", indices: ["coyhaique"] },
   { ciudad: "Punta Arenas", zona: "Sur", ema: "520012", indices: ["parenas", "ptarenas"] },
-
   { ciudad: "Juan Fernández", zona: "Insular", ema: "330031", indices: ["jfernandez", "juanfernandez"] },
   { ciudad: "Rapa Nui", zona: "Insular", ema: "270001", indices: ["rapanui", "pascua"] },
   { ciudad: "Rey Jorge", zona: "Insular", ema: "950001", indices: ["antartica", "reyjorge", "frei", "marsh"] },
@@ -46,15 +43,19 @@ const BOLETIN_STATIONS = [
   ["caldera", "Copiapó"],
   ["la florida", "La Serena"],
 
-  // VALPARAÍSO
-  ["punta ãngeles faro", "Valparaíso"],
-  ["punta ãngeles", "Valparaíso"],
+  // VALPARAÍSO — Faro Punta Ángeles
   ["punta angeles faro", "Valparaíso"],
   ["punta ángeles faro", "Valparaíso"],
-  ["punta angeles", "Valparaíso"],
-  ["punta ángeles", "Valparaíso"],
+  ["punta ãngeles faro", "Valparaíso"],
+  ["punta Ãngeles faro", "Valparaíso"],
+  ["faro punta angeles", "Valparaíso"],
+  ["faro punta ángeles", "Valparaíso"],
   ["angeles faro", "Valparaíso"],
   ["ángeles faro", "Valparaíso"],
+  ["punta angeles", "Valparaíso"],
+  ["punta ángeles", "Valparaíso"],
+  ["punta ãngeles", "Valparaíso"],
+  ["punta Ãngeles", "Valparaíso"],
 
   ["rodelillo", "Viña del Mar"],
   ["rancagua", "Rancagua"],
