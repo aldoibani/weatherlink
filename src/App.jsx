@@ -604,7 +604,7 @@ export default function App() {
   const statusLabel = { idle:"—", loading:"Actualizando pronóstico…", ok:`Pronóstico · ${lastUpdate.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"})}`, error:"Sin pronóstico (datos base)" }[pronosticoStatus];
 
   return (
-    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Geist','Segoe UI',sans-serif", color:C.text }}>
+    <div style={{ minHeight:"100vh", background: isMobile ? "#0F172A" : C.bg, fontFamily:"'Geist','Segoe UI',sans-serif", color:C.text }}>
       <GoogleFonts />
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -661,15 +661,7 @@ export default function App() {
 
       {/* ── Tab: Condición actual ───────────────────────────────────────────── */}
       {tab === "condicion" && (
-        <main
-          style={{
-            padding: isMobile ? "12px 12px" : "22px 28px",
-            maxWidth: isMobile ? "100%" : "calc(100vw - 32px)",
-            width: "100%",
-            margin: "0 auto",
-            boxSizing: "border-box",
-          }}
-        >
+        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth: isMobile ? "100%" : "calc(100vw - 32px)", width:"100%", margin:"0 auto", boxSizing:"border-box" }}>
 
           {/* Toolbar */}
           <div style={{ marginBottom: isMobile ? 12 : 18 }}>
@@ -835,7 +827,7 @@ export default function App() {
             return (
               <section key={z} style={{ marginBottom:16 }}>
                 <div style={{ fontSize:9.5, fontWeight:600, color:C.muted, textTransform:"uppercase", letterSpacing:".1em", padding:"0 18px", marginBottom:5 }}>Zona {z}</div>
-                <div style={{ background:C.surface, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.03)" }}>
+                <div style={{ background: isMobile ? "transparent" : C.surface, borderRadius:14, border: isMobile ? "none" : `1px solid ${C.border}`, overflow: isMobile ? "visible" : "hidden", boxShadow: isMobile ? "none" : "0 1px 4px rgba(0,0,0,0.03)" }}>
                   {rows.map((d, i) => {
                     const sup = d.def_sup !== null && d.def_sup >= 0;
                     return (
@@ -874,7 +866,7 @@ export default function App() {
                       )}
                       {/* Mobile card */}
                       {isMobile && (
-                        <div key={d.ciudad+"m"} style={{ padding:"14px 16px", borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none" }}>
+                        <div key={d.ciudad+"m"} style={{ padding:"16px 16px", marginBottom: i<rows.length-1 ? 12 : 0, background:C.surface, border:`1px solid ${C.border}`, borderRadius:16, boxShadow:"0 1px 6px rgba(15,23,42,0.10)" }}>
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:12 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:11, minWidth:0 }}>
                               <Icon cat={d.categoria} size={30}/>
@@ -944,15 +936,7 @@ export default function App() {
 
       {/* ── Tab: Generar pronóstico ─────────────────────────────────────────── */}
       {tab === "pronostico" && (
-        <main
-          style={{
-            padding: isMobile ? "20px 12px" : "40px 28px",
-            maxWidth: isMobile ? "100%" : "calc(100vw - 32px)",
-            width: "100%",
-            margin: "0 auto",
-            boxSizing: "border-box",
-          }}
-        >
+        <main style={{ padding: isMobile ? "20px 12px" : "40px 28px", maxWidth: isMobile ? "100%" : "calc(100vw - 32px)", width:"100%", margin:"0 auto", boxSizing:"border-box" }}>
           <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
             <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:14 }}>Contenido del archivo</div>
             <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico nacional · {data.filter(d=>d.zona!=="Santiago").length} ciudades</div>
