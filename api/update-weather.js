@@ -191,11 +191,6 @@ function parsePronostico(jsText) {
       normalizeText(m[1])
     );
 
-    const tempStr = tempItems[0] || "";
-    const [minStr, maxStr] = tempStr.split("/");
-    const tmin = minStr ? toNumber(minStr) : null;
-    const tmax = maxStr ? toNumber(maxStr) : null;
-
     const textoOuter =
       block.match(/texto\s*:\s*\[([\s\S]*?)\]\s*,\s*redaccion/)?.[1] || "";
     const textoArrays = [];
@@ -207,24 +202,34 @@ function parsePronostico(jsText) {
       );
     }
 
+    const tempHoy = tempItems[0] || "";
+    const [minHoy, maxHoy] = tempHoy.split("/");
+
     const todayTexts = textoArrays[0] || [];
-    const condicion =
+    const condicionHoy =
       todayTexts[tramo] || todayTexts.find((x) => x && x.trim()) || null;
 
     const forecast_5d = tempItems.slice(0, 5).map((temp, i) => {
       const [mn, mx] = String(temp || "").split("/");
       const texts = textoArrays[i] || [];
-      const c = texts[tramo] || texts.find((x) => x && x.trim()) || condicion || null;
+      const condicion =
+        texts[tramo] || texts.find((x) => x && x.trim()) || condicionHoy || null;
       return {
         dia: i === 0 ? "Hoy" : diaNombreChile(i),
         tmin: mn ? toNumber(mn) : null,
         tmax: mx ? toNumber(mx) : null,
-        condicion: c,
-        categoria: normalizarCategoria(c),
+        condicion,
+        categoria: normalizarCategoria(condicion),
       };
     });
 
-    out[indice] = { tmin, tmax, condicion, categoria: normalizarCategoria(condicion), forecast_5d };
+    out[indice] = {
+      tmin: minHoy ? toNumber(minHoy) : null,
+      tmax: maxHoy ? toNumber(maxHoy) : null,
+      condicion: condicionHoy,
+      categoria: normalizarCategoria(condicionHoy),
+      forecast_5d,
+    };
   }
   return out;
 }
