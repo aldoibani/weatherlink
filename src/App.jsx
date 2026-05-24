@@ -251,8 +251,37 @@ const SANTIAGO_5 = [
 
 const ZONAS = ["Norte","Centro","Sur","Insular"];
 
-function excelConcepto(row = {}) {
-  return row.condicion || row.categoria || "";
+function excelCondicion(row = {}) {
+  const raw = row.condicion || row.categoria || "";
+  const t = String(raw)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  // Valores editoriales permitidos para Excel
+  if (t.includes("tormenta") && (t.includes("lluvia") || t.includes("chubasco"))) return "TORMENTA ELÉCTRICA CON LLUVIA";
+  if (t.includes("tormenta")) return "TORMENTA ELÉCTRICA";
+  if (t.includes("aguanieve")) return "AGUANIEVE";
+  if (t.includes("nieve")) return "NIEVE";
+  if (t.includes("lluvia fuerte") || t.includes("chubascos fuertes") || t.includes("chubasco fuerte")) return "LLUVIA FUERTE";
+  if (t.includes("lluvia debil") || t.includes("chubascos debiles") || t.includes("chubasco debil")) return "LLUVIA DÉBIL";
+  if (t.includes("intermitente") && (t.includes("lluvia") || t.includes("chubasco"))) return "LLUVIA INTERMITENTE";
+  if (t.includes("llovizna")) return "LLOVIZNA";
+  if ((t.includes("parcial") || t.includes("nubosidad parcial")) && (t.includes("lluvia") || t.includes("chubasco"))) return "PARCIAL LLUVIA";
+  if (t.includes("lluvia") || t.includes("chubasco")) return "LLUVIA";
+  if (t.includes("niebla")) return "NIEBLA";
+  if (t.includes("neblina")) return "NEBLINA";
+  if (t.includes("cubierto")) return "CUBIERTO";
+  if (t.includes("nublado")) return "NUBLADO";
+  if (t.includes("nubosidad parcial") || t.includes("parcial")) return "PARCIAL";
+  if (t.includes("escasa nubosidad")) return "ESCASA NUBOSIDAD";
+  if (t.includes("despejado")) return "DESPEJADO";
+
+  return row.categoria || "NUBLADO";
+}
+
+function excelObservaciones(row = {}) {
+  return row.condicion || "";
 }
 
 function generateExcel(data, santiagoForecast = SANTIAGO_5, selectedExtra = []) {
@@ -262,40 +291,43 @@ function generateExcel(data, santiagoForecast = SANTIAGO_5, selectedExtra = []) 
   const wb = XLSX.utils.book_new();
 
   const title = [["PRONÓSTICO WEATHERLINK"]];
-  const nationalHeader = [["CIUDAD", "CONCEPTO", "MIN", "MAX"]];
+  const nationalHeader = [["CIUDAD", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
   const nationalRows = [];
 
   ZONAS.forEach(zona => {
     const zoneRows = data.filter(d => d.zona === zona);
     if (!zoneRows.length) return;
-    nationalRows.push([`ZONA ${zona.toUpperCase()}`, "", "", ""]);
+    nationalRows.push([`ZONA ${zona.toUpperCase()}`, "", "", "", ""]);
     zoneRows.forEach(d => {
       nationalRows.push([
         d.ciudad,
-        excelConcepto(d),
+        excelCondicion(d),
         d.tmin ?? null,
         d.tmax ?? null,
+        excelObservaciones(d),
       ]);
     });
-    nationalRows.push(["", "", "", ""]);
+    nationalRows.push(["", "", "", "", ""]);
   });
 
   const santiagoTitle = [["SANTIAGO · PRONÓSTICO EXTENDIDO 5 DÍAS"]];
-  const santiagoHeader = [["DÍA", "CONCEPTO", "MIN", "MAX"]];
+  const santiagoHeader = [["DÍA", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
   const santiagoRows = santiagoForecast.slice(0, 5).map(d => [
     d.dia,
-    excelConcepto(d),
+    excelCondicion(d),
     d.tmin ?? null,
     d.tmax ?? null,
+    excelObservaciones(d),
   ]);
 
   const extraTitle = [["CIUDADES EXTRA"]];
-  const extraHeader = [["CIUDAD", "CONCEPTO", "MIN", "MAX"]];
+  const extraHeader = [["CIUDAD", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
   const extraRows = selectedExtra.slice(0, 5).map(d => [
     d.ciudad,
-    excelConcepto(d),
+    excelCondicion(d),
     d.tmin ?? null,
     d.tmax ?? null,
+    excelObservaciones(d),
   ]);
 
   const rows = [
@@ -312,11 +344,11 @@ function generateExcel(data, santiagoForecast = SANTIAGO_5, selectedExtra = []) 
     ...extraTitle,
     [""],
     ...extraHeader,
-    ...(extraRows.length ? extraRows : [["", "", "", ""]]),
+    ...(extraRows.length ? extraRows : [["", "", "", "", ""]]),
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{ wch: 24 }, { wch: 52 }, { wch: 10 }, { wch: 10 }];
+  ws["!cols"] = [{ wch: 24 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 56 }];
   ws["!freeze"] = { xSplit: 0, ySplit: 3 };
 
   // Estilos básicos. Algunas versiones de SheetJS Community no preservan todos los estilos,
@@ -604,7 +636,7 @@ export default function App() {
   const statusLabel = { idle:"—", loading:"Actualizando pronóstico…", ok:`Pronóstico · ${lastUpdate.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"})}`, error:"Sin pronóstico (datos base)" }[pronosticoStatus];
 
   return (
-    <div style={{ minHeight:"100vh", background: isMobile ? "#0F172A" : C.bg, fontFamily:"'Geist','Segoe UI',sans-serif", color:C.text }}>
+    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Geist','Segoe UI',sans-serif", color:C.text }}>
       <GoogleFonts />
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -661,7 +693,7 @@ export default function App() {
 
       {/* ── Tab: Condición actual ───────────────────────────────────────────── */}
       {tab === "condicion" && (
-        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth: isMobile ? "100%" : "calc(100vw - 32px)", width:"100%", margin:"0 auto", boxSizing:"border-box" }}>
+        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth:1480, margin:"0 auto", width:"100%" }}>
 
           {/* Toolbar */}
           <div style={{ marginBottom: isMobile ? 12 : 18 }}>
@@ -827,7 +859,7 @@ export default function App() {
             return (
               <section key={z} style={{ marginBottom:16 }}>
                 <div style={{ fontSize:9.5, fontWeight:600, color:C.muted, textTransform:"uppercase", letterSpacing:".1em", padding:"0 18px", marginBottom:5 }}>Zona {z}</div>
-                <div style={{ background: isMobile ? "transparent" : C.surface, borderRadius:14, border: isMobile ? "none" : `1px solid ${C.border}`, overflow: isMobile ? "visible" : "hidden", boxShadow: isMobile ? "none" : "0 1px 4px rgba(0,0,0,0.03)" }}>
+                <div style={{ background:C.surface, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.03)" }}>
                   {rows.map((d, i) => {
                     const sup = d.def_sup !== null && d.def_sup >= 0;
                     return (
@@ -866,7 +898,7 @@ export default function App() {
                       )}
                       {/* Mobile card */}
                       {isMobile && (
-                        <div key={d.ciudad+"m"} style={{ padding:"16px 16px", marginBottom: i<rows.length-1 ? 12 : 0, background:C.surface, border:`1px solid ${C.border}`, borderRadius:16, boxShadow:"0 1px 6px rgba(15,23,42,0.10)" }}>
+                        <div key={d.ciudad+"m"} style={{ padding:"14px 16px", borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none" }}>
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:12 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:11, minWidth:0 }}>
                               <Icon cat={d.categoria} size={30}/>
@@ -936,7 +968,7 @@ export default function App() {
 
       {/* ── Tab: Generar pronóstico ─────────────────────────────────────────── */}
       {tab === "pronostico" && (
-        <main style={{ padding: isMobile ? "20px 12px" : "40px 28px", maxWidth: isMobile ? "100%" : "calc(100vw - 32px)", width:"100%", margin:"0 auto", boxSizing:"border-box" }}>
+        <main style={{ padding:"40px 28px", maxWidth:760, margin:"0 auto" }}>
           <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
             <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:14 }}>Contenido del archivo</div>
             <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico nacional · {data.filter(d=>d.zona!=="Santiago").length} ciudades</div>
