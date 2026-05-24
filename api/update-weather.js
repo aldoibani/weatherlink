@@ -223,14 +223,29 @@ function parsePronostico(jsText) {
       };
     });
 
-    out[indice] = {
+    const entry = {
       tmin: minHoy ? toNumber(minHoy) : null,
       tmax: maxHoy ? toNumber(maxHoy) : null,
       condicion: condicionHoy,
       categoria: normalizarCategoria(condicionHoy),
       forecast_5d,
     };
+
+    out[indice] = entry;
+
+    const blockText = stripAccents(block).toLowerCase();
+    if (
+      blockText.includes("santiago") ||
+      blockText.includes("quinta normal") ||
+      blockText.includes("pudahuel") ||
+      indice === "stgo" ||
+      indice === "santiago"
+    ) {
+      out.santiago = entry;
+      out.stgo = entry;
+    }
   }
+
   return out;
 }
 
@@ -338,7 +353,14 @@ async function buildWeatherJson() {
       ? parseBoletin(boletinSettled.value)
       : {};
 
-  const santiagoPronostico = pickPronostico(pronostico, ["stgo", "santiago"]) || {};
+  const santiagoPronostico =
+    pickPronostico(pronostico, [
+      "stgo", "santiago", "santiagocentro", "santiago-centro", "metropolitana", "rm",
+    ]) ||
+    Object.values(pronostico).find((p) =>
+      stripAccents(JSON.stringify(p)).toLowerCase().includes("santiago")
+    ) ||
+    {};
 
   const santiagoStations = await Promise.all(
     SANTIAGO_STATIONS.map((station) => buildStationRow(station, pronostico, boletin))
