@@ -53,6 +53,38 @@ const CITIES = [
   { ciudad: "Rey Jorge", zona: "Insular", ema: "950001", indices: ["reyjorge"] },
 ];
 
+const BOLETIN_STATIONS = [
+  ["quinta normal", "Quinta Normal"],
+  ["pudahuel", "Pudahuel"],
+  ["chacalluta", "Arica"],
+  ["diego aracena", "Iquique"],
+  ["cerro moreno", "Antofagasta"],
+  ["desierto de atacama", "Copiapó"],
+  ["caldera", "Copiapó"],
+  ["la florida", "La Serena"],
+  ["rodelillo", "Viña del Mar"],
+  ["rancagua", "Rancagua"],
+  ["panguilemo", "Talca"],
+  ["talca", "Talca"],
+  ["general bernardo", "Chillán"],
+  ["chillan", "Chillán"],
+  ["carriel", "Concepción"],
+  ["maquehue", "Temuco"],
+  ["pichoy", "Valdivia"],
+  ["canal bajo", "Osorno"],
+  ["cañal bajo", "Osorno"],
+  ["tepual", "Puerto Montt"],
+  ["teniente vidal", "Coyhaique"],
+  ["balmaceda", "Coyhaique"],
+  ["carlos ibanez", "Punta Arenas"],
+  ["carlos ibañez", "Punta Arenas"],
+  ["robinson crusoe", "Juan Fernández"],
+  ["juan fernandez", "Juan Fernández"],
+  ["mataveri", "Rapa Nui"],
+  ["frei", "Rey Jorge"],
+  ["marsh", "Rey Jorge"],
+];
+
 function normalizeText(s = "") {
   return String(s)
     .replace(/Ã/g, "Á").replace(/Ã¡/g, "á")
@@ -66,6 +98,13 @@ function stripAccents(s = "") {
   return normalizeText(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+function stationKey(s = "") {
+  return stripAccents(normalizeText(s))
+    .toLowerCase()
+    .replace(/[.,;:()]/g, " ")
+    .replace(/\s+/g, " ").trim();
+}
+
 function toNumber(v) {
   if (v === null || v === undefined) return null;
   const raw = String(v).trim();
@@ -74,9 +113,25 @@ function toNumber(v) {
   return Number.isFinite(x) ? x : null;
 }
 
+function numberOrZeroIfSP(v) {
+  if (v === null || v === undefined) return null;
+  if (/^S\/P$/i.test(String(v).trim())) return 0;
+  return toNumber(v);
+}
+
 function parseMaybeNumber(v) {
   return v !== undefined && v !== null && String(v).trim() !== ""
     ? toNumber(v) : null;
+}
+
+function parsePrecipDia(value, rowText = "") {
+  const clean = stripAccents(normalizeText(`${value} ${rowText}`)).toLowerCase();
+  if (
+    clean.includes("s/p") ||
+    clean.includes("sin precipitacion") ||
+    clean.includes("sin precipitaciones")
+  ) return 0;
+  return numberOrZeroIfSP(value);
 }
 
 function normalizarCategoria(texto) {
@@ -125,6 +180,47 @@ async function fetchText(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.text();
+}
+
+function cityFromStationName(stationName, rowText = "") {
+  const clean = stationKey(`${stationName} ${rowText}`);
+  for (const [key, city] of BOLETIN_STATIONS) {
+    if (clean.includes(stationKey(key))) return city;
+  }
+  return null;
+}
+
+function extractCells(rowHtml) {
+  const cells = [];
+  const cellRe = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+  let m;
+  while ((m = cellRe.exec(rowHtml)) !== null) {
+    cells.push(normalizeText(m[1].replace(/<[^>]+>/g, " ")));
+  }
+  return cells;
+}
+
+function parseBoletin(html) {
+  const out = {};
+  const rowRe = /<tr[\s\S]*?<\/tr>/gi;
+  let rowMatch;
+
+  while ((rowMatch = rowRe.exec(html)) !== null) {
+    const cells = extractCells(rowMatch[0]);
+    if (cells.length < 10) continue;
+
+    const rowText = cells.join(" ");
+    const city = cityFromStationName(cells[0], rowText);
+    if (!city) continue;
+
+    out[city] = {
+      tmin:    toNumber(cells[1]),
+      pp_dia:  parsePrecipDia(cells[5], rowText),
+      pp_acum: numberOrZeroIfSP(cells[6]),
+      def_sup: /^S\/P$/i.test(cells[9]) ? null : toNumber(cells[9]),
+    };
+  }
+  return out;
 }
 
 function parsePronostico(jsText) {
@@ -186,7 +282,6 @@ function parsePronostico(jsText) {
       forecast_5d,
     };
   }
-
   return out;
 }
 
@@ -213,7 +308,7 @@ function parseEmaWindMax(html) {
   return null;
 }
 
-async function buildStationRow(station, pronostico) {
+async function buildStationRow(station, pronostico, boletin) {
   let tact = null;
   let viento_max = null;
 
@@ -227,6 +322,7 @@ async function buildStationRow(station, pronostico) {
   }
 
   const p = pickPronostico(pronostico, station.indices);
+  const b = boletin[station.ciudad] || {};
 
   return {
     ciudad: station.ciudad,
@@ -234,26 +330,34 @@ async function buildStationRow(station, pronostico) {
     zona: station.zona,
     tact,
     viento_max,
-    tmin: p.tmin ?? null,
+    tmin: p.tmin ?? b.tmin ?? null,
     tmax: p.tmax ?? null,
     condicion: p.condicion ?? null,
     categoria: p.categoria ?? null,
+    pp_dia:  b.pp_dia  ?? null,
+    pp_acum: b.pp_acum ?? null,
+    def_sup: b.def_sup ?? null,
   };
 }
 
 async function buildWeatherJson() {
-  const pronosticoText = await fetchText(PRONOSTICO_URL);
+  const [pronosticoText, boletinHtml] = await Promise.all([
+    fetchText(PRONOSTICO_URL),
+    fetchText(BOLETIN_URL),
+  ]);
+
   const pronostico = parsePronostico(pronosticoText);
+  const boletin = parseBoletin(boletinHtml);
 
   const santiagoPronostico =
     pronostico.stgo || pickPronostico(pronostico, ["stgo"]) || {};
 
   const santiagoStations = await Promise.all(
-    SANTIAGO_STATIONS.map((station) => buildStationRow(station, pronostico))
+    SANTIAGO_STATIONS.map((station) => buildStationRow(station, pronostico, boletin))
   );
 
   const rows = await Promise.all(
-    CITIES.map((c) => buildStationRow(c, pronostico))
+    CITIES.map((c) => buildStationRow(c, pronostico, boletin))
   );
 
   return {
