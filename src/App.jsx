@@ -636,7 +636,7 @@ export default function App() {
   const statusLabel = { idle:"—", loading:"Actualizando pronóstico…", ok:`Pronóstico · ${lastUpdate.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"})}`, error:"Sin pronóstico (datos base)" }[pronosticoStatus];
 
   return (
-    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Geist','Segoe UI',sans-serif", color:C.text }}>
+    <div style={{ minHeight:"100vh", background: isMobile ? "#0B1220" : C.bg, fontFamily:"'Geist','Segoe UI',sans-serif", color:C.text }}>
       <GoogleFonts />
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -693,7 +693,7 @@ export default function App() {
 
       {/* ── Tab: Condición actual ───────────────────────────────────────────── */}
       {tab === "condicion" && (
-        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth:1480, margin:"0 auto", width:"100%" }}>
+        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth:1480, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
 
           {/* Toolbar */}
           <div style={{ marginBottom: isMobile ? 12 : 18 }}>
@@ -847,7 +847,7 @@ export default function App() {
             </div>
           )}
           {isMobile && (
-            <div style={{ padding:"0 14px 8px", fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:".08em" }}>
+            <div style={{ padding:"0 14px 10px", fontSize:10, color: isMobile ? "#A8B3C7" : C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:".08em" }}>
               Ciudades
             </div>
           )}
@@ -858,8 +858,8 @@ export default function App() {
             if (!rows.length) return null;
             return (
               <section key={z} style={{ marginBottom:16 }}>
-                <div style={{ fontSize:9.5, fontWeight:600, color:C.muted, textTransform:"uppercase", letterSpacing:".1em", padding:"0 18px", marginBottom:5 }}>Zona {z}</div>
-                <div style={{ background:C.surface, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.03)" }}>
+                <div style={{ fontSize:9.5, fontWeight:600, color: isMobile ? "#A8B3C7" : C.muted, textTransform:"uppercase", letterSpacing:".1em", padding:"0 18px", marginBottom: isMobile ? 10 : 5 }}>Zona {z}</div>
+                <div style={{ background: isMobile ? "transparent" : C.surface, borderRadius:14, border: isMobile ? "none" : `1px solid ${C.border}`, overflow: isMobile ? "visible" : "hidden", boxShadow: isMobile ? "none" : "0 1px 4px rgba(0,0,0,0.03)" }}>
                   {rows.map((d, i) => {
                     const sup = d.def_sup !== null && d.def_sup >= 0;
                     return (
@@ -898,7 +898,7 @@ export default function App() {
                       )}
                       {/* Mobile card */}
                       {isMobile && (
-                        <div key={d.ciudad+"m"} style={{ padding:"14px 16px", borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none" }}>
+                        <div key={d.ciudad+"m"} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:18, padding:"16px 16px", marginBottom: i<rows.length-1 ? 12 : 0, boxShadow:"0 8px 24px rgba(2,6,23,0.16)" }}>
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:12 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:11, minWidth:0 }}>
                               <Icon cat={d.categoria} size={30}/>
@@ -960,7 +960,7 @@ export default function App() {
             );
           })}
 
-          <div style={{ fontSize:10, color:"#C0C8D4", textAlign:"right", marginTop:6 }}>
+          <div style={{ fontSize:10, color: isMobile ? "#64748B" : "#C0C8D4", textAlign:"right", marginTop:6 }}>
             Condición/pronóstico: MeteoChile pronostico.js · Temperatura/viento: EMA · PP: Boletín DMC · Normales 1991–2020
           </div>
         </main>
@@ -968,7 +968,7 @@ export default function App() {
 
       {/* ── Tab: Generar pronóstico ─────────────────────────────────────────── */}
       {tab === "pronostico" && (
-        <main style={{ padding:"40px 28px", maxWidth:760, margin:"0 auto" }}>
+        <main style={{ padding: isMobile ? "20px 12px" : "40px 28px", maxWidth:760, margin:"0 auto", boxSizing:"border-box" }}>
           <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
             <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:14 }}>Contenido del archivo</div>
             <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico nacional · {data.filter(d=>d.zona!=="Santiago").length} ciudades</div>
@@ -983,14 +983,14 @@ export default function App() {
             </div>
 
             <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico extendido Santiago · 5 días</div>
-            <div style={{ display:"flex", gap:7, marginBottom:4 }}>
+            <div style={{ display:"grid", gridTemplateColumns:isMobile ? "repeat(5, minmax(76px, 1fr))" : "repeat(5,1fr)", gap:8, overflowX:isMobile ? "auto" : "visible", paddingBottom:isMobile ? 2 : 0, marginBottom:4 }}>
               {santiagoForecast.slice(0,5).map((d,i)=>(
-                <div key={i} style={{ flex:1, background:C.bg, borderRadius:10, padding:"10px 8px", border:`1px solid ${C.border}`, textAlign:"center" }}>
-                  <div style={{ fontSize:9.5, color:C.muted, marginBottom:6 }}>{shortDay(d.dia)}</div>
-                  <div style={{ display:"flex", justifyContent:"center" }}><Icon cat={d.categoria} size={22}/></div>
-                  <div style={{ fontSize:11, ...mono, marginTop:5 }}>
+                <div key={`${d.dia || i}-${i}`} style={{ minWidth:isMobile ? 76 : "auto", background:C.bg, borderRadius:12, padding:"11px 8px", border:`1px solid ${C.border}`, textAlign:"center" }}>
+                  <div style={{ fontSize:10, color:C.muted, marginBottom:7 }}>{shortDay(d.dia)}</div>
+                  <div style={{ display:"flex", justifyContent:"center" }}><Icon cat={d.categoria || normalizarCategoria(d.condicion)} size={24}/></div>
+                  <div style={{ fontSize:11, ...mono, marginTop:7 }}>
                     <span style={{color:"#60A5FA"}}>{fmtT(d.tmin)}</span>
-                    <span style={{color:C.border, margin:"0 2px"}}>/</span>
+                    <span style={{color:C.border, margin:"0 3px"}}>/</span>
                     <span style={{color:C.orange}}>{fmtT(d.tmax)}</span>
                   </div>
                 </div>
