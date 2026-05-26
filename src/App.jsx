@@ -251,6 +251,78 @@ const SANTIAGO_5 = [
 
 const ZONAS = ["Norte","Centro","Sur","Insular"];
 
+const CONDITION_OPTIONS = [
+  "DESPEJADO",
+  "ESCASA NUBOSIDAD",
+  "PARCIAL",
+  "NUBLADO",
+  "CUBIERTO",
+  "PARCIAL LLUVIA",
+  "LLUVIA FUERTE",
+  "LLUVIA",
+  "LLUVIA DÉBIL",
+  "LLUVIA INTERMITENTE",
+  "LLOVIZNA",
+  "NIEBLA",
+  "NEBLINA",
+  "TORMENTA ELÉCTRICA",
+  "TORMENTA ELÉCTRICA CON LLUVIA",
+  "NIEVE",
+  "AGUANIEVE",
+];
+
+const FIXED_CITY_NAMES = [
+  "Arica",
+  "Iquique",
+  "Antofagasta",
+  "Copiapó",
+  "La Serena",
+  "Viña del Mar",
+  "Rancagua",
+  "Talca",
+  "Chillán",
+  "Concepción",
+  "Temuco",
+  "Valdivia",
+  "Osorno",
+  "Puerto Montt",
+  "Coyhaique",
+  "Punta Arenas",
+  "Juan Fernández",
+  "Rapa Nui",
+  "Rey Jorge",
+];
+
+const normalizeConditionOption = (row = {}) => {
+  const c = excelCondicion(row);
+  return CONDITION_OPTIONS.includes(c) ? c : "NUBLADO";
+};
+
+const editableFromRow = (row = {}, labelKey = "ciudad") => ({
+  ...row,
+  [labelKey]: row[labelKey] || row.ciudad || row.dia || "",
+  condicion: normalizeConditionOption(row),
+  tmin: row.tmin ?? "",
+  tmax: row.tmax ?? "",
+  observaciones: row.observaciones ?? row.condicion_original ?? row.condicion ?? "",
+});
+
+const buildFixedEditableRows = (rows = DEFAULT_DATA) =>
+  FIXED_CITY_NAMES.map((city) => {
+    const row = rows.find((d) => d.ciudad === city) || { ciudad: city };
+    return editableFromRow(row, "ciudad");
+  });
+
+const buildSantiagoEditableRows = (rows = SANTIAGO_5) =>
+  rows.slice(0, 5).map((row, i) => editableFromRow({ ...row, dia: row.dia || (i === 0 ? "Hoy" : `Día ${i + 1}`) }, "dia"));
+
+const cleanNumberForExcel = (value) => {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = Number(String(value).replace(",", "."));
+  return Number.isFinite(n) ? n : value;
+};
+
+
 function excelCondicion(row = {}) {
   const raw = row.condicion || row.categoria || "";
   const t = String(raw)
@@ -284,88 +356,77 @@ function excelObservaciones(row = {}) {
   return row.condicion || "";
 }
 
-function generateExcel(data, santiagoForecast = SANTIAGO_5, selectedExtra = []) {
+function generateExcel(fixedRows = [], santiagoRowsInput = [], extraRowsInput = []) {
   const XLSX = window.XLSX;
   if (!XLSX) return;
 
   const wb = XLSX.utils.book_new();
 
-  const title = [["PRONÓSTICO WEATHERLINK"]];
-  const nationalHeader = [["CIUDAD", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
-  const nationalRows = [];
-
-  ZONAS.forEach(zona => {
-    const zoneRows = data.filter(d => d.zona === zona);
-    if (!zoneRows.length) return;
-    nationalRows.push([`ZONA ${zona.toUpperCase()}`, "", "", "", ""]);
-    zoneRows.forEach(d => {
-      nationalRows.push([
-        d.ciudad,
-        excelCondicion(d),
-        d.tmin ?? null,
-        d.tmax ?? null,
-        excelObservaciones(d),
-      ]);
-    });
-    nationalRows.push(["", "", "", "", ""]);
-  });
-
-  const santiagoTitle = [["SANTIAGO · PRONÓSTICO EXTENDIDO 5 DÍAS"]];
-  const santiagoHeader = [["DÍA", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
-  const santiagoRows = santiagoForecast.slice(0, 5).map(d => [
-    d.dia,
-    excelCondicion(d),
-    d.tmin ?? null,
-    d.tmax ?? null,
-    excelObservaciones(d),
+  const section1Header = [["CIUDAD", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
+  const section1Rows = fixedRows.map((d) => [
+    d.ciudad,
+    d.condicion,
+    cleanNumberForExcel(d.tmin),
+    cleanNumberForExcel(d.tmax),
+    d.observaciones || "",
   ]);
 
-  const extraTitle = [["CIUDADES EXTRA"]];
-  const extraHeader = [["CIUDAD", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
-  const extraRows = selectedExtra.slice(0, 5).map(d => [
+  const section2Header = [["SANTIAGO", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
+  const section2Rows = santiagoRowsInput.slice(0, 5).map((d) => [
+    d.dia,
+    d.condicion,
+    cleanNumberForExcel(d.tmin),
+    cleanNumberForExcel(d.tmax),
+    d.observaciones || "",
+  ]);
+
+  const section3Header = [["CIUDADES", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
+  const section3Rows = extraRowsInput.slice(0, 5).map((d) => [
     d.ciudad,
-    excelCondicion(d),
-    d.tmin ?? null,
-    d.tmax ?? null,
-    excelObservaciones(d),
+    d.condicion,
+    cleanNumberForExcel(d.tmin),
+    cleanNumberForExcel(d.tmax),
+    d.observaciones || "",
   ]);
 
   const rows = [
-    ...title,
+    ["PRONÓSTICO WEATHERLINK"],
     [""],
-    ...nationalHeader,
-    ...nationalRows,
+    ...section1Header,
+    ...section1Rows,
     [""],
-    ...santiagoTitle,
+    ["SANTIAGO CENTRO · PRONÓSTICO EXTENDIDO 5 DÍAS"],
+    ...section2Header,
+    ...section2Rows,
     [""],
-    ...santiagoHeader,
-    ...santiagoRows,
-    [""],
-    ...extraTitle,
-    [""],
-    ...extraHeader,
-    ...(extraRows.length ? extraRows : [["", "", "", "", ""]]),
+    ["CIUDADES EXTRA"],
+    ...section3Header,
+    ...(section3Rows.length ? section3Rows : [["", "", "", "", ""]]),
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{ wch: 24 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 56 }];
+  ws["!cols"] = [{ wch: 24 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 64 }];
   ws["!freeze"] = { xSplit: 0, ySplit: 3 };
 
-  // Estilos básicos. Algunas versiones de SheetJS Community no preservan todos los estilos,
-  // pero sí deja una estructura limpia, editable y con anchos correctos.
   const range = XLSX.utils.decode_range(ws["!ref"]);
+  const headerLabels = new Set(["CIUDAD", "SANTIAGO", "CIUDADES"]);
   for (let R = range.s.r; R <= range.e.r; ++R) {
+    const firstCell = ws[XLSX.utils.encode_cell({ r: R, c: 0 })]?.v;
+    const isTitle = R === 0 || String(firstCell || "").includes("PRONÓSTICO EXTENDIDO") || firstCell === "CIUDADES EXTRA";
+    const isHeader = headerLabels.has(firstCell);
+
     for (let Cc = range.s.c; Cc <= range.e.c; ++Cc) {
       const addr = XLSX.utils.encode_cell({ r: R, c: Cc });
       if (!ws[addr]) continue;
       ws[addr].s = {
-        font: { name: "Arial", sz: 11 },
-        alignment: { vertical: "center", wrapText: true },
+        font: { name: "Arial", sz: isTitle ? 12 : 11, bold: isTitle || isHeader },
+        fill: isHeader ? { fgColor: { rgb: "E8EEF8" } } : isTitle ? { fgColor: { rgb: "F3F6FA" } } : undefined,
+        alignment: { vertical: "center", horizontal: Cc === 4 ? "left" : "center", wrapText: true },
         border: {
-          top: { style: "thin", color: { rgb: "E5E7EB" } },
-          bottom: { style: "thin", color: { rgb: "E5E7EB" } },
-          left: { style: "thin", color: { rgb: "E5E7EB" } },
-          right: { style: "thin", color: { rgb: "E5E7EB" } },
+          top: { style: "thin", color: { rgb: "CBD5E1" } },
+          bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+          left: { style: "thin", color: { rgb: "CBD5E1" } },
+          right: { style: "thin", color: { rgb: "CBD5E1" } },
         },
       };
     }
@@ -426,6 +487,8 @@ export default function App() {
   const [zona, setZona]             = useState("Todas");
   const [data, setData]             = useState(DEFAULT_DATA);
   const [santiagoForecast, setSantiagoForecast] = useState(SANTIAGO_5);
+  const [fixedEditableRows, setFixedEditableRows] = useState(() => buildFixedEditableRows(DEFAULT_DATA));
+  const [santiagoEditableRows, setSantiagoEditableRows] = useState(() => buildSantiagoEditableRows(SANTIAGO_5));
   const [extraOptions, setExtraOptions] = useState([]);
   const [extraSearch, setExtraSearch] = useState("");
   const [selectedExtra, setSelectedExtra] = useState([]);
@@ -457,18 +520,22 @@ export default function App() {
       setPronosticoStatus("loading");
       const result = await fetchPronostico();
       if (result && Object.keys(result).length > 0) {
-        setData(prev => prev.map(d => {
-          const idx = INDICE_MAP[d.ciudad];
-          const p = idx ? result[idx] : null;
-          if (!p) return d;
-          return {
-            ...d,
-            tmin:      p.tmin      ?? d.tmin,
-            tmax:      p.tmax      ?? d.tmax,
-            condicion: p.condicion || d.condicion,
-            categoria: normalizarCategoria(p.condicion || d.condicion),
-          };
-        }));
+        setData(prev => {
+          const next = prev.map(d => {
+            const idx = INDICE_MAP[d.ciudad];
+            const p = idx ? result[idx] : null;
+            if (!p) return d;
+            return {
+              ...d,
+              tmin:      p.tmin      ?? d.tmin,
+              tmax:      p.tmax      ?? d.tmax,
+              condicion: p.condicion || d.condicion,
+              categoria: normalizarCategoria(p.condicion || d.condicion),
+            };
+          });
+          setFixedEditableRows(buildFixedEditableRows(next));
+          return next;
+        });
         setLastUpdate(new Date());
         setPronosticoStatus("ok");
       } else {
@@ -499,7 +566,9 @@ export default function App() {
       }
 
       const payload = await res.json();
-      setSantiagoForecast(pickSantiagoForecast(payload, SANTIAGO_5));
+      const nextSantiagoForecast = pickSantiagoForecast(payload, SANTIAGO_5);
+      setSantiagoForecast(nextSantiagoForecast);
+      setSantiagoEditableRows(buildSantiagoEditableRows(nextSantiagoForecast));
       if (Array.isArray(payload?.extra_forecast_options)) {
         setExtraOptions(payload.extra_forecast_options);
       }
@@ -514,24 +583,29 @@ export default function App() {
       if (payload?.santiago?.pudahuel) santiagoExtra.push({ ...payload.santiago.pudahuel, ciudad:"Pudahuel", zona:"Santiago", estacion:"Pudahuel" });
       const mergedRows = [...rows, ...santiagoExtra];
 
-      setData(prev => prev.map(d => {
-        const m = mergedRows.find(r => r.ciudad === d.ciudad);
-        if (!m) return d;
+      setData(prev => {
+        const next = prev.map(d => {
+          const m = mergedRows.find(r => r.ciudad === d.ciudad);
+          if (!m) return d;
 
-        return {
-          ...d,
-          tact:      m.tact      ?? null,
-          viento_max: m.viento_max ?? null,
-          tmin:      m.tmin      ?? null,
-          tmax:      m.tmax      ?? null,
-          condicion: m.condicion ?? "",
-          categoria: m.categoria || normalizarCategoria(m.condicion),
-          pp_dia:    m.pp_dia    ?? null,
-          pp_anio:   m.pp_acum   ?? m.pp_anio ?? null,
-          def_sup:   m.def_sup   ?? null,
-          pp_normal: m.pp_normal ?? d.pp_normal ?? null,
-        };
-      }));
+          return {
+            ...d,
+            tact:      m.tact      ?? null,
+            viento_max: m.viento_max ?? null,
+            tmin:      m.tmin      ?? null,
+            tmax:      m.tmax      ?? null,
+            condicion: m.condicion ?? "",
+            categoria: m.categoria || normalizarCategoria(m.condicion),
+            observaciones: m.observaciones ?? m.condicion_original ?? m.condicion ?? "",
+            pp_dia:    m.pp_dia    ?? null,
+            pp_anio:   m.pp_acum   ?? m.pp_anio ?? null,
+            def_sup:   m.def_sup   ?? null,
+            pp_normal: m.pp_normal ?? d.pp_normal ?? null,
+          };
+        });
+        setFixedEditableRows(buildFixedEditableRows(next));
+        return next;
+      });
 
       setImported(true);
       setLastUpdate(new Date());
@@ -595,16 +669,31 @@ export default function App() {
     setLastUpdate(new Date());
   };
 
+  const updateFixedEditableRow = (index, field, value) => {
+    setFixedEditableRows(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
+    setGenerated(false);
+  };
+
+  const updateSantiagoEditableRow = (index, field, value) => {
+    setSantiagoEditableRows(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
+    setGenerated(false);
+  };
+
+  const updateExtraEditableRow = (index, field, value) => {
+    setSelectedExtra(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
+    setGenerated(false);
+  };
+
   const handleGenerate = () => {
     setGenerating(true);
-    setTimeout(() => { generateExcel(data.filter(d => d.zona !== "Santiago"), santiagoForecast, selectedExtra); setGenerating(false); setGenerated(true); }, 900);
+    setTimeout(() => { generateExcel(fixedEditableRows, santiagoEditableRows, selectedExtra); setGenerating(false); setGenerated(true); }, 900);
   };
 
   const addExtraCity = (city) => {
     if (!city || selectedExtra.length >= 5) return;
     const exists = selectedExtra.some(x => x.indice === city.indice || x.ciudad === city.ciudad);
     if (exists) return;
-    setSelectedExtra(prev => [...prev, city].slice(0, 5));
+    setSelectedExtra(prev => [...prev, editableFromRow(city, "ciudad")].slice(0, 5));
     setExtraSearch("");
     setGenerated(false);
   };
@@ -968,47 +1057,98 @@ export default function App() {
 
       {/* ── Tab: Generar pronóstico ─────────────────────────────────────────── */}
       {tab === "pronostico" && (
-        <main style={{ padding: isMobile ? "20px 12px" : "40px 28px", maxWidth:760, margin:"0 auto", boxSizing:"border-box" }}>
-          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:14 }}>Contenido del archivo</div>
-            <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico nacional · {data.filter(d=>d.zona!=="Santiago").length} ciudades</div>
-            <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap:8, marginBottom:22 }}>
-              {ZONAS.map(z=>(
-                <div key={z} style={{ background:C.bg, borderRadius:10, padding:"10px 14px", border:`1px solid ${C.border}` }}>
-                  <div style={{ fontSize:9.5, color:C.muted, textTransform:"uppercase", letterSpacing:".07em" }}>Zona {z}</div>
-                  <div style={{ fontSize:20, fontWeight:600, color:C.accent, marginTop:2 }}>{data.filter(d=>d.zona===z).length}</div>
-                  <div style={{ fontSize:10, color:C.muted }}>ciudades</div>
-                </div>
-              ))}
+        <main style={{ padding: isMobile ? "20px 12px" : "40px 28px", maxWidth:1040, margin:"0 auto", boxSizing:"border-box" }}>
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "18px 16px" : "24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:isMobile ? "flex-start" : "center", justifyContent:"space-between", gap:12, flexDirection:isMobile ? "column" : "row" }}>
+              <div>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:6 }}>Editor meteorológico</div>
+                <h1 style={{ fontSize:isMobile ? 20 : 26, fontWeight:600, letterSpacing:"-.6px", color:C.text, marginBottom:6 }}>Generar pronóstico</h1>
+                <p style={{ fontSize:12, color:C.muted, lineHeight:1.5 }}>Edita condición, mínima, máxima y observaciones antes de exportar el Excel operacional.</p>
+              </div>
+              <button onClick={handleAutoUpdate} disabled={updating} style={{ width:isMobile ? "100%" : "auto", padding:"10px 14px", borderRadius:10, border:`1px solid ${C.border}`, background:updating ? "#F8FAFC" : C.surface, color:updating ? C.muted : C.accent, cursor:updating ? "wait" : "pointer", fontSize:12, fontWeight:600, fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ animation: updating ? "spin 1s linear infinite" : "none" }}><path d="M21 12a9 9 0 1 1-2.64-6.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M21 4v6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                {updating ? "Actualizando…" : "Actualizar datos"}
+              </button>
             </div>
+            {updateError && <div style={{ marginTop:12, padding:"10px 12px", borderRadius:10, background:C.redBg, color:C.red, fontSize:12, fontWeight:500 }}>{updateError}</div>}
+          </div>
 
-            <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico extendido Santiago · 5 días</div>
-            <div style={{ display:"grid", gridTemplateColumns:isMobile ? "repeat(5, minmax(76px, 1fr))" : "repeat(5,1fr)", gap:8, overflowX:isMobile ? "auto" : "visible", paddingBottom:isMobile ? 2 : 0, marginBottom:4 }}>
-              {santiagoForecast.slice(0,5).map((d,i)=>(
-                <div key={`${d.dia || i}-${i}`} style={{ minWidth:isMobile ? 76 : "auto", background:C.bg, borderRadius:12, padding:"11px 8px", border:`1px solid ${C.border}`, textAlign:"center" }}>
-                  <div style={{ fontSize:10, color:C.muted, marginBottom:7 }}>{shortDay(d.dia)}</div>
-                  <div style={{ display:"flex", justifyContent:"center" }}><Icon cat={d.categoria || normalizarCategoria(d.condicion)} size={24}/></div>
-                  <div style={{ fontSize:11, ...mono, marginTop:7 }}>
-                    <span style={{color:"#60A5FA"}}>{fmtT(d.tmin)}</span>
-                    <span style={{color:C.border, margin:"0 3px"}}>/</span>
-                    <span style={{color:C.orange}}>{fmtT(d.tmax)}</span>
-                  </div>
-                </div>
-              ))}
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "16px 12px" : "20px 22px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:12, marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:4 }}>Bloque 1</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.text }}>Ciudades fijas</div>
+              </div>
+              <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>{fixedEditableRows.length}/19</div>
+            </div>
+            <div style={{ overflowX:"auto", border:`1px solid ${C.border}`, borderRadius:12 }}>
+              <table style={{ width:"100%", minWidth:860, borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ background:C.bg }}>
+                    {["Ciudad", "Condición", "Mínima", "Máxima", "Observaciones"].map(h => <th key={h} style={{ padding:"9px 10px", borderBottom:`1px solid ${C.border}`, textAlign:h === "Observaciones" ? "left" : "center", fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {fixedEditableRows.map((row, i) => (
+                    <tr key={row.ciudad}>
+                      <td style={{ padding:"8px 10px", borderBottom:`1px solid ${C.border}`, fontWeight:600, color:C.text, textAlign:"center" }}>{row.ciudad}</td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}>
+                        <select value={row.condicion} onChange={e=>updateFixedEditableRow(i, "condicion", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:11, background:"#fff", color:C.text }}>
+                          {CONDITION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmin} onChange={e=>updateFixedEditableRow(i, "tmin", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmax} onChange={e=>updateFixedEditableRow(i, "tmax", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.observaciones} onChange={e=>updateFixedEditableRow(i, "observaciones", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:12 }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"20px 24px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "16px 12px" : "20px 22px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:12, marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:4 }}>Bloque 2</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.text }}>Pronóstico extendido Santiago Centro · 5 días</div>
+              </div>
+              <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>{santiagoEditableRows.length} días</div>
+            </div>
+            <div style={{ overflowX:"auto", border:`1px solid ${C.border}`, borderRadius:12 }}>
+              <table style={{ width:"100%", minWidth:860, borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ background:C.bg }}>
+                    {["Día", "Condición", "Mínima", "Máxima", "Observaciones"].map(h => <th key={h} style={{ padding:"9px 10px", borderBottom:`1px solid ${C.border}`, textAlign:h === "Observaciones" ? "left" : "center", fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {santiagoEditableRows.map((row, i) => (
+                    <tr key={`${row.dia}-${i}`}>
+                      <td style={{ padding:"8px 10px", borderBottom:`1px solid ${C.border}`, fontWeight:600, color:C.text, textAlign:"center" }}>{row.dia}</td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}>
+                        <select value={row.condicion} onChange={e=>updateSantiagoEditableRow(i, "condicion", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:11, background:"#fff", color:C.text }}>
+                          {CONDITION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmin} onChange={e=>updateSantiagoEditableRow(i, "tmin", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmax} onChange={e=>updateSantiagoEditableRow(i, "tmax", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.observaciones} onChange={e=>updateSantiagoEditableRow(i, "observaciones", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:12 }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "16px 12px" : "20px 22px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:10 }}>
               <div>
-                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:4 }}>Ciudades extra</div>
-                <div style={{ fontSize:12, fontWeight:600, color:"#374151" }}>Selecciona hasta 5 ciudades del pronóstico MeteoChile</div>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:4 }}>Bloque 3</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.text }}>5 ciudades extra</div>
               </div>
-              <div style={{ fontSize:11, color:selectedExtra.length >= 5 ? C.green : C.muted, fontWeight:600 }}>
-                {selectedExtra.length}/5
-              </div>
+              <div style={{ fontSize:11, color:selectedExtra.length >= 5 ? C.green : C.muted, fontWeight:600 }}>{selectedExtra.length}/5</div>
             </div>
-
             <div style={{ position:"relative", marginBottom:12 }}>
               <input
                 value={extraSearch}
@@ -1030,21 +1170,30 @@ export default function App() {
             </div>
 
             {selectedExtra.length > 0 ? (
-              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                {selectedExtra.map(city=>(
-                  <div key={city.indice || city.ciudad} style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px 32px", alignItems:"center", gap:8, background:C.bg, border:`1px solid ${C.border}`, borderRadius:10, padding:"9px 10px" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-                      <Icon cat={city.categoria} size={22}/>
-                      <div style={{ minWidth:0 }}>
-                        <div style={{ fontSize:12, fontWeight:600, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{city.ciudad}</div>
-                        <div style={{ fontSize:10, color:C.muted, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{city.condicion || city.categoria || "—"}</div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign:"center", ...mono, fontSize:12, color:"#60A5FA" }}>{fmtT(city.tmin)}</div>
-                    <div style={{ textAlign:"center", ...mono, fontSize:12, color:C.orange }}>{fmtT(city.tmax)}</div>
-                    <button onClick={()=>removeExtraCity(city)} style={{ border:"none", background:"transparent", color:C.muted, cursor:"pointer", fontSize:18, lineHeight:1 }}>×</button>
-                  </div>
-                ))}
+              <div style={{ overflowX:"auto", border:`1px solid ${C.border}`, borderRadius:12 }}>
+                <table style={{ width:"100%", minWidth:900, borderCollapse:"collapse", fontSize:12 }}>
+                  <thead>
+                    <tr style={{ background:C.bg }}>
+                      {["Ciudad", "Condición", "Mínima", "Máxima", "Observaciones", ""].map(h => <th key={h || "remove"} style={{ padding:"9px 10px", borderBottom:`1px solid ${C.border}`, textAlign:h === "Observaciones" ? "left" : "center", fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedExtra.map((row, i) => (
+                      <tr key={row.indice || row.ciudad}>
+                        <td style={{ padding:"8px 10px", borderBottom:`1px solid ${C.border}`, fontWeight:600, color:C.text, textAlign:"center" }}>{row.ciudad}</td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}>
+                          <select value={row.condicion} onChange={e=>updateExtraEditableRow(i, "condicion", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:11, background:"#fff", color:C.text }}>
+                            {CONDITION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmin} onChange={e=>updateExtraEditableRow(i, "tmin", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmax} onChange={e=>updateExtraEditableRow(i, "tmax", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.observaciones} onChange={e=>updateExtraEditableRow(i, "observaciones", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:12 }} /></td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}`, textAlign:"center" }}><button onClick={()=>removeExtraCity(row)} style={{ border:"none", background:"transparent", color:C.muted, cursor:"pointer", fontSize:18, lineHeight:1 }}>×</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : (
               <div style={{ background:C.bg, border:`1px dashed ${C.border}`, borderRadius:10, padding:"14px 12px", fontSize:11, color:C.muted, textAlign:"center" }}>
@@ -1053,10 +1202,10 @@ export default function App() {
             )}
           </div>
 
-          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"18px 28px", marginBottom:22, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"18px 22px", marginBottom:22, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
             <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:10 }}>Excel editable</div>
             <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-              {["Pronóstico nacional", "Santiago 5 días", "Ciudades extra", "CIUDAD", "CONCEPTO", "MIN", "MAX"].map(c=>(
+              {["3 secciones", "CIUDAD / SANTIAGO / CIUDADES", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"].map(c=>(
                 <span key={c} style={{ fontSize:11, fontWeight:500, color:"#374151", background:C.bg, borderRadius:6, padding:"3px 11px", border:`1px solid ${C.border}` }}>{c}</span>
               ))}
             </div>
@@ -1082,7 +1231,7 @@ export default function App() {
             </div>
           )}
           <p style={{ textAlign:"center", fontSize:11, color:C.muted, marginTop:14 }}>
-            {data.filter(d=>d.zona!=="Santiago").length} ciudades · Santiago 5 días · {selectedExtra.length} ciudades extra · formato .xlsx
+            {fixedEditableRows.length} ciudades fijas · Santiago {santiagoEditableRows.length} días · {selectedExtra.length} ciudades extra · formato .xlsx
           </p>
         </main>
       )}
