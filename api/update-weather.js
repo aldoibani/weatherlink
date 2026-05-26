@@ -16,7 +16,10 @@ const SANTIAGO_STATIONS = [
     label: "Quinta Normal",
     zona: "Santiago",
     ema: "330020",
-    indices: ["stgo", "santiago"],
+    indices: [
+      "santiagocentro", "santiago_centro", "santiago-centro",
+      "stgocentro", "stgo_centro", "stgo-centro", "centro",
+    ],
   },
   {
     key: "pudahuel",
@@ -24,7 +27,10 @@ const SANTIAGO_STATIONS = [
     label: "Pudahuel",
     zona: "Santiago",
     ema: "330021",
-    indices: ["stgo", "santiago"],
+    indices: [
+      "santiagoponiente", "santiago_poniente", "santiago-poniente",
+      "stgoponiente", "stgo_poniente", "stgo-poniente", "poniente",
+    ],
   },
 ];
 
@@ -112,10 +118,10 @@ function normalizeText(s = "") {
     .replace(/&iacute;/g, "í").replace(/&oacute;/g, "ó")
     .replace(/&uacute;/g, "ú").replace(/&ntilde;/g, "ñ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-    .replace(/Ã/g, "Á").replace(/Ã¡/g, "á")
-    .replace(/Ã©/g, "é").replace(/Ã­/g, "í")
-    .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú")
-    .replace(/Ã±/g, "ñ").replace(/Ã/g, "Á")
+    .replace(/Ã¡/g, "á").replace(/Ã©/g, "é")
+    .replace(/Ã­/g, "í").replace(/Ã³/g, "ó")
+    .replace(/Ãº/g, "ú").replace(/Ã±/g, "ñ")
+    .replace(/Ã/g, "Á")
     .replace(/\s+/g, " ").trim();
 }
 
@@ -241,6 +247,56 @@ function extractPronosticoName(block, indice) {
   return fromField || titleCaseFromIndice(indice);
 }
 
+function addPronosticoAliases(out, entry, block) {
+  const indiceText = stationKey(entry.indice);
+  const ciudadText = stationKey(entry.ciudad);
+  const blockText = stationKey(block);
+
+  const haySantiago = (
+    indiceText.includes("santiago") ||
+    indiceText.includes("stgo") ||
+    ciudadText.includes("santiago") ||
+    blockText.includes("santiago")
+  );
+
+  const esCentro = haySantiago && (
+    indiceText.includes("centro") ||
+    ciudadText.includes("centro") ||
+    blockText.includes("santiago centro")
+  );
+
+  const esPoniente = haySantiago && (
+    indiceText.includes("poniente") ||
+    ciudadText.includes("poniente") ||
+    blockText.includes("santiago poniente")
+  );
+
+  if (esCentro) {
+    out.santiagocentro = entry;
+    out.santiago_centro = entry;
+    out["santiago-centro"] = entry;
+    out.stgocentro = entry;
+    out.stgo_centro = entry;
+    out["stgo-centro"] = entry;
+    out.centro = entry;
+  }
+
+  if (esPoniente) {
+    out.santiagoponiente = entry;
+    out.santiago_poniente = entry;
+    out["santiago-poniente"] = entry;
+    out.stgoponiente = entry;
+    out.stgo_poniente = entry;
+    out["stgo-poniente"] = entry;
+    out.poniente = entry;
+  }
+
+  if (indiceText === "stgo" || (!out.stgo && haySantiago && !esPoniente)) {
+    out.stgo = entry;
+    out.santiago = entry;
+  }
+}
+
 function parsePronostico(jsText) {
   const blocks = jsText.match(/Pronostico\.push\(\{[\s\S]*?\}\)/g) || [];
   const tramo = tramoHorarioChile();
@@ -301,6 +357,7 @@ function parsePronostico(jsText) {
     };
 
     out[indice] = entry;
+    addPronosticoAliases(out, entry, block);
 
     options.push({
       indice,
@@ -310,22 +367,6 @@ function parsePronostico(jsText) {
       tmin: entry.tmin,
       tmax: entry.tmax,
     });
-
-    const blockText = stripAccents(block).toLowerCase();
-    const indiceText = stripAccents(indice).toLowerCase();
-    const ciudadText = stripAccents(ciudad).toLowerCase();
-
-    if (
-      indiceText === "stgo" ||
-      indiceText.includes("santiago") ||
-      blockText.includes("santiago") ||
-      ciudadText.includes("santiago") ||
-      ciudadText.includes("quinta normal") ||
-      ciudadText.includes("pudahuel")
-    ) {
-      out.santiago = entry;
-      out.stgo = entry;
-    }
   }
 
   out.__options = options
@@ -444,9 +485,14 @@ async function buildStationRow(station, pronostico, boletin) {
 
 function getSantiagoPronostico(pronostico) {
   return (
+    pronostico.santiagocentro ||
+    pronostico.santiago_centro ||
+    pronostico["santiago-centro"] ||
+    pronostico.stgocentro ||
+    pronostico.stgo_centro ||
+    pronostico["stgo-centro"] ||
     pronostico.stgo ||
     pronostico.santiago ||
-    pickPronostico(pronostico, ["stgo", "santiago"]) ||
     {}
   );
 }
