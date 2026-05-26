@@ -225,6 +225,7 @@ const DEFAULT_DATA = [
   { zona:"Norte",   ciudad:"Antofagasta",    tmin:11.3, tmax:16.5, tact:17.6, categoria:"NUBLADO",   condicion:"Nublado variando a nubosidad parcial",    pp_dia:0,    pp_anio:0,     def_sup:-100,  pp_normal:null  },
   { zona:"Norte",   ciudad:"Copiapó",        tmin:11.2, tmax:17.0, tact:17.6, categoria:"CUBIERTO",  condicion:"Cubierto variando a nubosidad parcial",   pp_dia:0,    pp_anio:0.8,   def_sup:null,  pp_normal:null  },
   { zona:"Norte",   ciudad:"La Serena",      tmin:10.5, tmax:15.3, tact:13.5, categoria:"NEBLINA",   condicion:"Cubierto y neblina",                     pp_dia:0,    pp_anio:1.2,   def_sup:-90.2, pp_normal:12.2  },
+  { zona:"Centro",  ciudad:"Valparaíso",      tmin:null, tmax:null, tact:null, categoria:"CUBIERTO",  condicion:"Cubierto",                               pp_dia:null, pp_anio:null,  def_sup:null,  pp_normal:null  },
   { zona:"Centro",  ciudad:"Viña del Mar",   tmin: 4.6, tmax:12.1, tact:11.2, categoria:"LLOVIZNA",  condicion:"Cubierto, neblina y llovizna",            pp_dia:0,    pp_anio:42.3,  def_sup:-43.7, pp_normal:75.1  },
   { zona:"Centro",  ciudad:"Rancagua",       tmin: 1.6, tmax:16.8, tact: 6.5, categoria:"NIEBLA",    condicion:"Cubierto y niebla",                      pp_dia:null, pp_anio:null,  def_sup:null,  pp_normal:null  },
   { zona:"Centro",  ciudad:"Talca",          tmin: 1.0, tmax:10.5, tact:12.3, categoria:"NIEBLA",    condicion:"Cubierto y niebla",                      pp_dia:null, pp_anio:null,  def_sup:null,  pp_normal:null  },
@@ -277,6 +278,7 @@ const FIXED_CITY_NAMES = [
   "Antofagasta",
   "Copiapó",
   "La Serena",
+  "Valparaíso",
   "Viña del Mar",
   "Rancagua",
   "Talca",
@@ -362,71 +364,64 @@ function generateExcel(fixedRows = [], santiagoRowsInput = [], extraRowsInput = 
 
   const wb = XLSX.utils.book_new();
 
-  const section1Header = [["CIUDAD", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
+  const section1Header = [["CIUDAD", "ICONO", "MIN", "MAX"]];
   const section1Rows = fixedRows.map((d) => [
     d.ciudad,
     d.condicion,
     cleanNumberForExcel(d.tmin),
     cleanNumberForExcel(d.tmax),
-    d.observaciones || "",
   ]);
 
-  const section2Header = [["SANTIAGO", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
+  const section2Header = [["SANTIAGO", "ICONO", "MIN", "MAX"]];
   const section2Rows = santiagoRowsInput.slice(0, 5).map((d) => [
     d.dia,
     d.condicion,
     cleanNumberForExcel(d.tmin),
     cleanNumberForExcel(d.tmax),
-    d.observaciones || "",
   ]);
 
-  const section3Header = [["CIUDADES", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
+  const section3Header = [["CIUDADES", "ICONO", "MIN", "MAX"]];
   const section3Rows = extraRowsInput.slice(0, 5).map((d) => [
     d.ciudad,
     d.condicion,
     cleanNumberForExcel(d.tmin),
     cleanNumberForExcel(d.tmax),
-    d.observaciones || "",
   ]);
 
   const rows = [
-    ["PRONÓSTICO WEATHERLINK"],
-    [""],
     ...section1Header,
     ...section1Rows,
     [""],
-    ["SANTIAGO CENTRO · PRONÓSTICO EXTENDIDO 5 DÍAS"],
     ...section2Header,
     ...section2Rows,
     [""],
-    ["CIUDADES EXTRA"],
     ...section3Header,
-    ...(section3Rows.length ? section3Rows : [["", "", "", "", ""]]),
+    ...(section3Rows.length ? section3Rows : [["", "", "", ""]]),
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [{ wch: 24 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 64 }];
-  ws["!freeze"] = { xSplit: 0, ySplit: 3 };
+  ws["!cols"] = [{ wch: 24 }, { wch: 24 }, { wch: 10 }, { wch: 10 }];
+  ws["!freeze"] = { xSplit: 0, ySplit: 1 };
 
   const range = XLSX.utils.decode_range(ws["!ref"]);
   const headerLabels = new Set(["CIUDAD", "SANTIAGO", "CIUDADES"]);
+
   for (let R = range.s.r; R <= range.e.r; ++R) {
     const firstCell = ws[XLSX.utils.encode_cell({ r: R, c: 0 })]?.v;
-    const isTitle = R === 0 || String(firstCell || "").includes("PRONÓSTICO EXTENDIDO") || firstCell === "CIUDADES EXTRA";
     const isHeader = headerLabels.has(firstCell);
 
     for (let Cc = range.s.c; Cc <= range.e.c; ++Cc) {
       const addr = XLSX.utils.encode_cell({ r: R, c: Cc });
       if (!ws[addr]) continue;
       ws[addr].s = {
-        font: { name: "Arial", sz: isTitle ? 12 : 11, bold: isTitle || isHeader },
-        fill: isHeader ? { fgColor: { rgb: "E8EEF8" } } : isTitle ? { fgColor: { rgb: "F3F6FA" } } : undefined,
-        alignment: { vertical: "center", horizontal: Cc === 4 ? "left" : "center", wrapText: true },
+        font: { name: "Arial", sz: 11, bold: isHeader },
+        fill: isHeader ? { fgColor: { rgb: "E8EEF8" } } : undefined,
+        alignment: { vertical: "center", horizontal: "center", wrapText: true },
         border: {
-          top: { style: "thin", color: { rgb: "CBD5E1" } },
-          bottom: { style: "thin", color: { rgb: "CBD5E1" } },
-          left: { style: "thin", color: { rgb: "CBD5E1" } },
-          right: { style: "thin", color: { rgb: "CBD5E1" } },
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } },
         },
       };
     }
