@@ -41,6 +41,7 @@ const CITIES = [
   { ciudad: "Copiapó", zona: "Norte", ema: "270009", indices: ["copiapo"] },
   { ciudad: "La Serena", zona: "Norte", ema: "290004", indices: ["serena"] },
 
+  { ciudad: "Valparaíso", zona: "Centro", ema: "330030", indices: ["valpo", "valparaiso"] },
   { ciudad: "Viña del Mar", zona: "Centro", ema: "330007", indices: ["vdelmar"] },
   { ciudad: "Rancagua", zona: "Centro", ema: "340045", indices: ["rancagua"] },
   { ciudad: "Talca", zona: "Centro", ema: "350028", indices: ["talca"] },
@@ -254,20 +255,16 @@ function addPronosticoAliases(out, entry, block) {
   const blockText = stationKey(block);
 
   const haySantiago =
-    indiceText.includes("santiago") ||
-    indiceText.includes("stgo") ||
-    ciudadText.includes("santiago") ||
-    blockText.includes("santiago");
+    indiceText.includes("santiago") || indiceText.includes("stgo") ||
+    ciudadText.includes("santiago") || blockText.includes("santiago");
 
   const esCentro = haySantiago && (
-    indiceText.includes("centro") ||
-    ciudadText.includes("centro") ||
+    indiceText.includes("centro") || ciudadText.includes("centro") ||
     blockText.includes("santiago centro")
   );
 
   const esPoniente = haySantiago && (
-    indiceText.includes("poniente") ||
-    ciudadText.includes("poniente") ||
+    indiceText.includes("poniente") || ciudadText.includes("poniente") ||
     blockText.includes("santiago poniente")
   );
 
@@ -489,15 +486,9 @@ async function buildStationRow(station, pronostico, boletin) {
 
 function getSantiagoPronostico(pronostico) {
   return (
-    pronostico.santiagocentro ||
-    pronostico.santiago_centro ||
-    pronostico["santiago-centro"] ||
-    pronostico.stgocentro ||
-    pronostico.stgo_centro ||
-    pronostico["stgo-centro"] ||
-    pronostico.stgo ||
-    pronostico.santiago ||
-    {}
+    pronostico.santiagocentro || pronostico.santiago_centro || pronostico["santiago-centro"] ||
+    pronostico.stgocentro || pronostico.stgo_centro || pronostico["stgo-centro"] ||
+    pronostico.stgo || pronostico.santiago || {}
   );
 }
 
