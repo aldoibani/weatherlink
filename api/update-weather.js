@@ -184,6 +184,7 @@ function normalizarCategoria(texto) {
   if (t.includes("nieve")) return "NIEVE";
   if (t.includes("lluvia fuerte")) return "LLUVIA FUERTE";
   if (t.includes("lluvia debil") || t.includes("chubascos debiles")) return "LLUVIA DÉBIL";
+  if (t.includes("parcial") && (t.includes("lluvia") || t.includes("chubascos"))) return "PARCIAL LLUVIA";
   if (t.includes("intermitente") && t.includes("lluvia")) return "LLUVIA INTERMITENTE";
   if (t.includes("llovizna")) return "LLOVIZNA";
   if (t.includes("lluvia") || t.includes("chubascos")) return "LLUVIA";
@@ -252,12 +253,11 @@ function addPronosticoAliases(out, entry, block) {
   const ciudadText = stationKey(entry.ciudad);
   const blockText = stationKey(block);
 
-  const haySantiago = (
+  const haySantiago =
     indiceText.includes("santiago") ||
     indiceText.includes("stgo") ||
     ciudadText.includes("santiago") ||
-    blockText.includes("santiago")
-  );
+    blockText.includes("santiago");
 
   const esCentro = haySantiago && (
     indiceText.includes("centro") ||
@@ -272,22 +272,14 @@ function addPronosticoAliases(out, entry, block) {
   );
 
   if (esCentro) {
-    out.santiagocentro = entry;
-    out.santiago_centro = entry;
-    out["santiago-centro"] = entry;
-    out.stgocentro = entry;
-    out.stgo_centro = entry;
-    out["stgo-centro"] = entry;
+    out.santiagocentro = entry; out.santiago_centro = entry; out["santiago-centro"] = entry;
+    out.stgocentro = entry; out.stgo_centro = entry; out["stgo-centro"] = entry;
     out.centro = entry;
   }
 
   if (esPoniente) {
-    out.santiagoponiente = entry;
-    out.santiago_poniente = entry;
-    out["santiago-poniente"] = entry;
-    out.stgoponiente = entry;
-    out.stgo_poniente = entry;
-    out["stgo-poniente"] = entry;
+    out.santiagoponiente = entry; out.santiago_poniente = entry; out["santiago-poniente"] = entry;
+    out.stgoponiente = entry; out.stgo_poniente = entry; out["stgo-poniente"] = entry;
     out.poniente = entry;
   }
 
@@ -329,20 +321,24 @@ function parsePronostico(jsText) {
     const [minHoy, maxHoy] = tempHoy.split("/");
 
     const todayTexts = textoArrays[0] || [];
-    const condicionHoy =
+    const condicionOriginalHoy =
       todayTexts[tramo] || todayTexts.find((x) => x && x.trim()) || null;
+    const condicionHoy = normalizarCategoria(condicionOriginalHoy);
 
     const forecast_5d = tempItems.slice(0, 5).map((temp, i) => {
       const [mn, mx] = String(temp || "").split("/");
       const texts = textoArrays[i] || [];
-      const condicion =
-        texts[tramo] || texts.find((x) => x && x.trim()) || condicionHoy || null;
+      const condicionOriginal =
+        texts[tramo] || texts.find((x) => x && x.trim()) || condicionOriginalHoy || null;
+      const condicionNormalizada = normalizarCategoria(condicionOriginal);
       return {
         dia: i === 0 ? "Hoy" : diaNombreChile(i),
         tmin: parseMaybeNumber(mn),
         tmax: parseMaybeNumber(mx),
-        condicion,
-        categoria: normalizarCategoria(condicion),
+        condicion: condicionNormalizada,
+        observaciones: condicionOriginal || "",
+        categoria: condicionNormalizada,
+        condicion_original: condicionOriginal || "",
       };
     });
 
@@ -352,7 +348,9 @@ function parsePronostico(jsText) {
       tmin: parseMaybeNumber(minHoy),
       tmax: parseMaybeNumber(maxHoy),
       condicion: condicionHoy,
-      categoria: normalizarCategoria(condicionHoy),
+      observaciones: condicionOriginalHoy || "",
+      categoria: condicionHoy,
+      condicion_original: condicionOriginalHoy || "",
       forecast_5d,
     };
 
@@ -362,8 +360,9 @@ function parsePronostico(jsText) {
     options.push({
       indice,
       ciudad,
-      condicion: entry.condicion,
-      categoria: entry.categoria,
+      condicion: condicionHoy,
+      observaciones: condicionOriginalHoy || "",
+      categoria: condicionHoy,
       tmin: entry.tmin,
       tmax: entry.tmax,
     });
@@ -467,6 +466,9 @@ async function buildStationRow(station, pronostico, boletin) {
   const p = pickPronostico(pronostico, station.indices);
   const b = boletin[station.ciudad] || {};
 
+  const condicionNormalizada = p.condicion ?? null;
+  const observaciones = p.observaciones ?? p.condicion_original ?? "";
+
   return {
     ciudad: station.ciudad,
     label: station.label || station.ciudad,
@@ -475,8 +477,10 @@ async function buildStationRow(station, pronostico, boletin) {
     viento_max,
     tmin: p.tmin ?? b.tmin ?? null,
     tmax: p.tmax ?? null,
-    condicion: p.condicion ?? null,
-    categoria: p.categoria ?? null,
+    condicion: condicionNormalizada,
+    observaciones,
+    categoria: condicionNormalizada,
+    condicion_original: p.condicion_original ?? observaciones,
     pp_dia:  b.pp_dia  ?? null,
     pp_acum: b.pp_acum ?? null,
     def_sup: b.def_sup ?? null,
