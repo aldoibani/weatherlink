@@ -49,7 +49,7 @@ function tramoHorario() {
 // ── Fetch pronostico.js de MeteoChile ─────────────────────────────────────────
 const INDICE_MAP = {
   "Arica":"arica","Iquique":"iquique","Antofagasta":"antofagasta","Copiapó":"copiapo",
-  "La Serena":"serena","Valparaíso":"valpo","Viña del Mar":"vdelmar","Santiago":"stgo",
+  "La Serena":"serena","Valparaíso":"valpo","Viña del Mar":"vdelmar","Santiago":"stgo","Pudahuel":"stgo",
   "Rancagua":"rancagua","Talca":"talca","Chillán":"chillan","Concepción":"concepcion",
   "Temuco":"temuco","Valdivia":"valdivia","Osorno":"osorno","Puerto Montt":"ptomontt",
   "Coyhaique":"coyhaique","Punta Arenas":"ptarenas","Juan Fernández":"juanfernandez",
@@ -138,7 +138,7 @@ const STATION_MAP = {
   "chacalluta":"Arica","arica":"Arica","diego aracena":"Iquique","iquique":"Iquique",
   "cerro moreno":"Antofagasta","antofagasta":"Antofagasta","desierto de atacama":"Copiapó",
   "caldera":"Copiapó","copiap":"Copiapó","la florida":"La Serena","la serena":"La Serena",
-  "rodelillo":"Valparaíso","ángeles faro":"Valparaíso","angeles faro":"Valparaíso",
+  "rodelillo":"Viña del Mar","ángeles faro":"Valparaíso","angeles faro":"Valparaíso",
   "eulogio":"Viña del Mar","tobalaba":"Viña del Mar","viña":"Viña del Mar",
   "quinta normal":"Santiago","pudahuel":"Santiago",
   "rancagua":"Rancagua","maquehua":"Temuco","maquehue":"Temuco","temuco":"Temuco",
@@ -201,6 +201,7 @@ function parseJsonChatGPT(text) {
       if (!ciudad) continue;
       results[ciudad] = {
         tact:      r.tact      ?? null,
+        viento_max: r.viento_max ?? null,
         tmin:      r.tmin      ?? null,
         tmax:      r.tmax      ?? null,
         condicion: r.condicion ?? "",
@@ -217,12 +218,13 @@ function parseJsonChatGPT(text) {
 
 // ── Datos base 23 mayo 2026 ───────────────────────────────────────────────────
 const DEFAULT_DATA = [
+  { zona:"Santiago", ciudad:"Santiago",       estacion:"Quinta Normal", tmin:null, tmax:null, tact:null, categoria:"NUBLADO", condicion:"", pp_dia:null, pp_anio:null, def_sup:null, pp_normal:null },
+  { zona:"Santiago", ciudad:"Pudahuel",       estacion:"Pudahuel",      tmin:null, tmax:null, tact:null, categoria:"NUBLADO", condicion:"", pp_dia:null, pp_anio:null, def_sup:null, pp_normal:null },
   { zona:"Norte",   ciudad:"Arica",         tmin:null, tmax:22,   tact:19.2, categoria:"CUBIERTO",  condicion:"Cubierto",                               pp_dia:0,    pp_anio:1.5,   def_sup:50,    pp_normal:1.0   },
   { zona:"Norte",   ciudad:"Iquique",        tmin:17.1, tmax:21.0, tact:20.2, categoria:"NUBLADO",   condicion:"Nublado variando a despejado",            pp_dia:0,    pp_anio:0,     def_sup:-100,  pp_normal:null  },
   { zona:"Norte",   ciudad:"Antofagasta",    tmin:11.3, tmax:16.5, tact:17.6, categoria:"NUBLADO",   condicion:"Nublado variando a nubosidad parcial",    pp_dia:0,    pp_anio:0,     def_sup:-100,  pp_normal:null  },
   { zona:"Norte",   ciudad:"Copiapó",        tmin:11.2, tmax:17.0, tact:17.6, categoria:"CUBIERTO",  condicion:"Cubierto variando a nubosidad parcial",   pp_dia:0,    pp_anio:0.8,   def_sup:null,  pp_normal:null  },
   { zona:"Norte",   ciudad:"La Serena",      tmin:10.5, tmax:15.3, tact:13.5, categoria:"NEBLINA",   condicion:"Cubierto y neblina",                     pp_dia:0,    pp_anio:1.2,   def_sup:-90.2, pp_normal:12.2  },
-  { zona:"Centro",  ciudad:"Valparaíso",     tmin:null, tmax:11.0, tact:null,  categoria:"LLOVIZNA", condicion:"Cubierto, neblina y llovizna",            pp_dia:0,    pp_anio:23.6,  def_sup:-54.4, pp_normal:51.7  },
   { zona:"Centro",  ciudad:"Viña del Mar",   tmin: 4.6, tmax:12.1, tact:11.2, categoria:"LLOVIZNA",  condicion:"Cubierto, neblina y llovizna",            pp_dia:0,    pp_anio:42.3,  def_sup:-43.7, pp_normal:75.1  },
   { zona:"Centro",  ciudad:"Rancagua",       tmin: 1.6, tmax:16.8, tact: 6.5, categoria:"NIEBLA",    condicion:"Cubierto y niebla",                      pp_dia:null, pp_anio:null,  def_sup:null,  pp_normal:null  },
   { zona:"Centro",  ciudad:"Talca",          tmin: 1.0, tmax:10.5, tact:12.3, categoria:"NIEBLA",    condicion:"Cubierto y niebla",                      pp_dia:null, pp_anio:null,  def_sup:null,  pp_normal:null  },
@@ -249,25 +251,197 @@ const SANTIAGO_5 = [
 
 const ZONAS = ["Norte","Centro","Sur","Insular"];
 
-function generateExcel(data) {
+const CONDITION_OPTIONS = [
+  "DESPEJADO",
+  "ESCASA NUBOSIDAD",
+  "PARCIAL",
+  "NUBLADO",
+  "CUBIERTO",
+  "PARCIAL LLUVIA",
+  "LLUVIA FUERTE",
+  "LLUVIA",
+  "LLUVIA DÉBIL",
+  "LLUVIA INTERMITENTE",
+  "LLOVIZNA",
+  "NIEBLA",
+  "NEBLINA",
+  "TORMENTA ELÉCTRICA",
+  "TORMENTA ELÉCTRICA CON LLUVIA",
+  "NIEVE",
+  "AGUANIEVE",
+];
+
+const FIXED_CITY_NAMES = [
+  "Arica",
+  "Iquique",
+  "Antofagasta",
+  "Copiapó",
+  "La Serena",
+  "Viña del Mar",
+  "Rancagua",
+  "Talca",
+  "Chillán",
+  "Concepción",
+  "Temuco",
+  "Valdivia",
+  "Osorno",
+  "Puerto Montt",
+  "Coyhaique",
+  "Punta Arenas",
+  "Juan Fernández",
+  "Rapa Nui",
+  "Rey Jorge",
+];
+
+const normalizeConditionOption = (row = {}) => {
+  const c = excelCondicion(row);
+  return CONDITION_OPTIONS.includes(c) ? c : "NUBLADO";
+};
+
+const editableFromRow = (row = {}, labelKey = "ciudad") => ({
+  ...row,
+  [labelKey]: row[labelKey] || row.ciudad || row.dia || "",
+  condicion: normalizeConditionOption(row),
+  tmin: row.tmin ?? "",
+  tmax: row.tmax ?? "",
+  observaciones: row.observaciones ?? row.condicion_original ?? row.condicion ?? "",
+});
+
+const buildFixedEditableRows = (rows = DEFAULT_DATA) =>
+  FIXED_CITY_NAMES.map((city) => {
+    const row = rows.find((d) => d.ciudad === city) || { ciudad: city };
+    return editableFromRow(row, "ciudad");
+  });
+
+const buildSantiagoEditableRows = (rows = SANTIAGO_5) =>
+  rows.slice(0, 5).map((row, i) => editableFromRow({ ...row, dia: row.dia || (i === 0 ? "Hoy" : `Día ${i + 1}`) }, "dia"));
+
+const cleanNumberForExcel = (value) => {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = Number(String(value).replace(",", "."));
+  return Number.isFinite(n) ? n : value;
+};
+
+
+function excelCondicion(row = {}) {
+  const raw = row.condicion || row.categoria || "";
+  const t = String(raw)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  // Valores editoriales permitidos para Excel
+  if (t.includes("tormenta") && (t.includes("lluvia") || t.includes("chubasco"))) return "TORMENTA ELÉCTRICA CON LLUVIA";
+  if (t.includes("tormenta")) return "TORMENTA ELÉCTRICA";
+  if (t.includes("aguanieve")) return "AGUANIEVE";
+  if (t.includes("nieve")) return "NIEVE";
+  if (t.includes("lluvia fuerte") || t.includes("chubascos fuertes") || t.includes("chubasco fuerte")) return "LLUVIA FUERTE";
+  if (t.includes("lluvia debil") || t.includes("chubascos debiles") || t.includes("chubasco debil")) return "LLUVIA DÉBIL";
+  if (t.includes("intermitente") && (t.includes("lluvia") || t.includes("chubasco"))) return "LLUVIA INTERMITENTE";
+  if (t.includes("llovizna")) return "LLOVIZNA";
+  if ((t.includes("parcial") || t.includes("nubosidad parcial")) && (t.includes("lluvia") || t.includes("chubasco"))) return "PARCIAL LLUVIA";
+  if (t.includes("lluvia") || t.includes("chubasco")) return "LLUVIA";
+  if (t.includes("niebla")) return "NIEBLA";
+  if (t.includes("neblina")) return "NEBLINA";
+  if (t.includes("cubierto")) return "CUBIERTO";
+  if (t.includes("nublado")) return "NUBLADO";
+  if (t.includes("nubosidad parcial") || t.includes("parcial")) return "PARCIAL";
+  if (t.includes("escasa nubosidad")) return "ESCASA NUBOSIDAD";
+  if (t.includes("despejado")) return "DESPEJADO";
+
+  return row.categoria || "NUBLADO";
+}
+
+function excelObservaciones(row = {}) {
+  return row.condicion || "";
+}
+
+function generateExcel(fixedRows = [], santiagoRowsInput = [], extraRowsInput = []) {
   const XLSX = window.XLSX;
   if (!XLSX) return;
+
   const wb = XLSX.utils.book_new();
-  const rows = [["Zona","Ciudad","Mínima","Máxima","Condición","Categoría"]];
-  ZONAS.forEach(zona => {
-    data.filter(d=>d.zona===zona).forEach((d,i)=>{
-      rows.push([i===0?zona:"", d.ciudad, d.tmin, d.tmax, d.condicion, d.categoria]);
-    });
-  });
-  const ws1 = XLSX.utils.aoa_to_sheet(rows);
-  ws1["!cols"] = [{wch:16},{wch:22},{wch:12},{wch:12},{wch:52},{wch:28}];
-  XLSX.utils.book_append_sheet(wb, ws1, "Pronóstico");
-  const rows2 = [["Ciudad","Día","Mínima","Máxima","Condición","Categoría"],
-    ...SANTIAGO_5.map(d=>["Santiago",d.dia,d.tmin,d.tmax,d.condicion,d.categoria])];
-  const ws2 = XLSX.utils.aoa_to_sheet(rows2);
-  ws2["!cols"] = [{wch:14},{wch:16},{wch:12},{wch:12},{wch:40},{wch:24}];
-  XLSX.utils.book_append_sheet(wb, ws2, "Santiago 5 días");
-  XLSX.writeFile(wb, "Pronostico_WeatherLink.xlsx");
+
+  const section1Header = [["CIUDAD", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
+  const section1Rows = fixedRows.map((d) => [
+    d.ciudad,
+    d.condicion,
+    cleanNumberForExcel(d.tmin),
+    cleanNumberForExcel(d.tmax),
+    d.observaciones || "",
+  ]);
+
+  const section2Header = [["SANTIAGO", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
+  const section2Rows = santiagoRowsInput.slice(0, 5).map((d) => [
+    d.dia,
+    d.condicion,
+    cleanNumberForExcel(d.tmin),
+    cleanNumberForExcel(d.tmax),
+    d.observaciones || "",
+  ]);
+
+  const section3Header = [["CIUDADES", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"]];
+  const section3Rows = extraRowsInput.slice(0, 5).map((d) => [
+    d.ciudad,
+    d.condicion,
+    cleanNumberForExcel(d.tmin),
+    cleanNumberForExcel(d.tmax),
+    d.observaciones || "",
+  ]);
+
+  const rows = [
+    ["PRONÓSTICO WEATHERLINK"],
+    [""],
+    ...section1Header,
+    ...section1Rows,
+    [""],
+    ["SANTIAGO CENTRO · PRONÓSTICO EXTENDIDO 5 DÍAS"],
+    ...section2Header,
+    ...section2Rows,
+    [""],
+    ["CIUDADES EXTRA"],
+    ...section3Header,
+    ...(section3Rows.length ? section3Rows : [["", "", "", "", ""]]),
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [{ wch: 24 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 64 }];
+  ws["!freeze"] = { xSplit: 0, ySplit: 3 };
+
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  const headerLabels = new Set(["CIUDAD", "SANTIAGO", "CIUDADES"]);
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    const firstCell = ws[XLSX.utils.encode_cell({ r: R, c: 0 })]?.v;
+    const isTitle = R === 0 || String(firstCell || "").includes("PRONÓSTICO EXTENDIDO") || firstCell === "CIUDADES EXTRA";
+    const isHeader = headerLabels.has(firstCell);
+
+    for (let Cc = range.s.c; Cc <= range.e.c; ++Cc) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: Cc });
+      if (!ws[addr]) continue;
+      ws[addr].s = {
+        font: { name: "Arial", sz: isTitle ? 12 : 11, bold: isTitle || isHeader },
+        fill: isHeader ? { fgColor: { rgb: "E8EEF8" } } : isTitle ? { fgColor: { rgb: "F3F6FA" } } : undefined,
+        alignment: { vertical: "center", horizontal: Cc === 4 ? "left" : "center", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: "CBD5E1" } },
+          bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+          left: { style: "thin", color: { rgb: "CBD5E1" } },
+          right: { style: "thin", color: { rgb: "CBD5E1" } },
+        },
+      };
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, "Pronóstico");
+  XLSX.writeFile(wb, "Pronostico_WeatherLink_Allie.xlsx");
+}
+
+function normalizeSearchText(s = "") {
+  return String(s)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -281,6 +455,30 @@ const mono = { fontFamily:"'Geist Mono','Courier New',monospace" };
 
 const fmtT = (v) => v === null || v === undefined ? "—" : `${v}°`;
 const fmtN = (v, u="") => v === null || v === undefined ? "—" : `${v}${u}`;
+const fmtWind = (v) => v === null || v === undefined ? "—" : `${v} km/h`;
+
+const stationName = (row) => {
+  if (!row) return "";
+  if (row.estacion) return row.estacion;
+  if (row.ciudad === "Santiago") return "Quinta Normal";
+  if (row.ciudad === "Pudahuel") return "Pudahuel";
+  return row.ciudad;
+};
+
+const shortDay = (dia = "") => String(dia).split(" ")[0] || "";
+
+const pickSantiagoForecast = (payload, fallback) => {
+  const candidates = [
+    payload?.santiago?.forecast_5d,
+    payload?.santiago?.forecast5d,
+    payload?.forecast_5d,
+    payload?.forecast5d,
+    payload?.pronostico_5d,
+  ];
+  const found = candidates.find(Array.isArray);
+  return found && found.length ? found.slice(0, 5) : fallback;
+};
+
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
@@ -288,6 +486,12 @@ export default function App() {
   const [tab, setTab]               = useState("condicion");
   const [zona, setZona]             = useState("Todas");
   const [data, setData]             = useState(DEFAULT_DATA);
+  const [santiagoForecast, setSantiagoForecast] = useState(SANTIAGO_5);
+  const [fixedEditableRows, setFixedEditableRows] = useState(() => buildFixedEditableRows(DEFAULT_DATA));
+  const [santiagoEditableRows, setSantiagoEditableRows] = useState(() => buildSantiagoEditableRows(SANTIAGO_5));
+  const [extraOptions, setExtraOptions] = useState([]);
+  const [extraSearch, setExtraSearch] = useState("");
+  const [selectedExtra, setSelectedExtra] = useState([]);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [pronosticoStatus, setPronosticoStatus] = useState("idle"); // idle|loading|ok|error
   const [pasteOpen, setPasteOpen]   = useState(false);
@@ -316,18 +520,22 @@ export default function App() {
       setPronosticoStatus("loading");
       const result = await fetchPronostico();
       if (result && Object.keys(result).length > 0) {
-        setData(prev => prev.map(d => {
-          const idx = INDICE_MAP[d.ciudad];
-          const p = idx ? result[idx] : null;
-          if (!p) return d;
-          return {
-            ...d,
-            tmin:      p.tmin      ?? d.tmin,
-            tmax:      p.tmax      ?? d.tmax,
-            condicion: p.condicion || d.condicion,
-            categoria: normalizarCategoria(p.condicion || d.condicion),
-          };
-        }));
+        setData(prev => {
+          const next = prev.map(d => {
+            const idx = INDICE_MAP[d.ciudad];
+            const p = idx ? result[idx] : null;
+            if (!p) return d;
+            return {
+              ...d,
+              tmin:      p.tmin      ?? d.tmin,
+              tmax:      p.tmax      ?? d.tmax,
+              condicion: p.condicion || d.condicion,
+              categoria: normalizarCategoria(p.condicion || d.condicion),
+            };
+          });
+          setFixedEditableRows(buildFixedEditableRows(next));
+          return next;
+        });
         setLastUpdate(new Date());
         setPronosticoStatus("ok");
       } else {
@@ -358,29 +566,46 @@ export default function App() {
       }
 
       const payload = await res.json();
-      const rows = Array.isArray(payload) ? payload : payload.data;
+      const nextSantiagoForecast = pickSantiagoForecast(payload, SANTIAGO_5);
+      setSantiagoForecast(nextSantiagoForecast);
+      setSantiagoEditableRows(buildSantiagoEditableRows(nextSantiagoForecast));
+      if (Array.isArray(payload?.extra_forecast_options)) {
+        setExtraOptions(payload.extra_forecast_options);
+      }
+      const rows = Array.isArray(payload) ? payload : (payload.data || payload.regiones || []);
 
       if (!Array.isArray(rows)) {
         throw new Error("Respuesta inválida: no viene array de datos");
       }
 
-      setData(prev => prev.map(d => {
-        const m = rows.find(r => r.ciudad === d.ciudad);
-        if (!m) return d;
+      const santiagoExtra = [];
+      if (payload?.santiago?.quinta_normal) santiagoExtra.push({ ...payload.santiago.quinta_normal, ciudad:"Santiago", zona:"Santiago", estacion:"Quinta Normal" });
+      if (payload?.santiago?.pudahuel) santiagoExtra.push({ ...payload.santiago.pudahuel, ciudad:"Pudahuel", zona:"Santiago", estacion:"Pudahuel" });
+      const mergedRows = [...rows, ...santiagoExtra];
 
-        return {
-          ...d,
-          tact:      m.tact      ?? null,
-          tmin:      m.tmin      ?? null,
-          tmax:      m.tmax      ?? null,
-          condicion: m.condicion ?? "",
-          categoria: m.categoria || normalizarCategoria(m.condicion),
-          pp_dia:    m.pp_dia    ?? null,
-          pp_anio:   m.pp_acum   ?? m.pp_anio ?? null,
-          def_sup:   m.def_sup   ?? null,
-          pp_normal: m.pp_normal ?? d.pp_normal ?? null,
-        };
-      }));
+      setData(prev => {
+        const next = prev.map(d => {
+          const m = mergedRows.find(r => r.ciudad === d.ciudad);
+          if (!m) return d;
+
+          return {
+            ...d,
+            tact:      m.tact      ?? null,
+            viento_max: m.viento_max ?? null,
+            tmin:      m.tmin      ?? null,
+            tmax:      m.tmax      ?? null,
+            condicion: m.condicion ?? "",
+            categoria: m.categoria || normalizarCategoria(m.condicion),
+            observaciones: m.observaciones ?? m.condicion_original ?? m.condicion ?? "",
+            pp_dia:    m.pp_dia    ?? null,
+            pp_anio:   m.pp_acum   ?? m.pp_anio ?? null,
+            def_sup:   m.def_sup   ?? null,
+            pp_normal: m.pp_normal ?? d.pp_normal ?? null,
+          };
+        });
+        setFixedEditableRows(buildFixedEditableRows(next));
+        return next;
+      });
 
       setImported(true);
       setLastUpdate(new Date());
@@ -406,6 +631,7 @@ export default function App() {
         if (!m) return d;
         return { ...d,
           tact:      m.tact      ?? d.tact,
+          viento_max: m.viento_max ?? d.viento_max,
           tmin:      m.tmin      ?? d.tmin,
           tmax:      m.tmax      ?? d.tmax,
           condicion: m.condicion || d.condicion,
@@ -443,20 +669,63 @@ export default function App() {
     setLastUpdate(new Date());
   };
 
+  const updateFixedEditableRow = (index, field, value) => {
+    setFixedEditableRows(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
+    setGenerated(false);
+  };
+
+  const updateSantiagoEditableRow = (index, field, value) => {
+    setSantiagoEditableRows(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
+    setGenerated(false);
+  };
+
+  const updateExtraEditableRow = (index, field, value) => {
+    setSelectedExtra(prev => prev.map((row, i) => i === index ? { ...row, [field]: value } : row));
+    setGenerated(false);
+  };
+
   const handleGenerate = () => {
     setGenerating(true);
-    setTimeout(() => { generateExcel(data); setGenerating(false); setGenerated(true); }, 900);
+    setTimeout(() => { generateExcel(fixedEditableRows, santiagoEditableRows, selectedExtra); setGenerating(false); setGenerated(true); }, 900);
   };
+
+  const addExtraCity = (city) => {
+    if (!city || selectedExtra.length >= 5) return;
+    const exists = selectedExtra.some(x => x.indice === city.indice || x.ciudad === city.ciudad);
+    if (exists) return;
+    setSelectedExtra(prev => [...prev, editableFromRow(city, "ciudad")].slice(0, 5));
+    setExtraSearch("");
+    setGenerated(false);
+  };
+
+  const removeExtraCity = (city) => {
+    setSelectedExtra(prev => prev.filter(x => x.indice !== city.indice && x.ciudad !== city.ciudad));
+    setGenerated(false);
+  };
+
+  const extraSuggestions = extraOptions
+    .filter(o => !selectedExtra.some(s => s.indice === o.indice || s.ciudad === o.ciudad))
+    .filter(o => {
+      const q = normalizeSearchText(extraSearch);
+      if (!q) return false;
+      return normalizeSearchText(o.ciudad).includes(q) || normalizeSearchText(o.indice).includes(q);
+    })
+    .slice(0, 8);
 
   const filtered = zona === "Todas" ? data : data.filter(d => d.zona === zona);
   const zones    = zona === "Todas" ? ZONAS : [zona];
+  const santiagoRows = [
+    data.find(d => d.ciudad === "Santiago"),
+    data.find(d => d.ciudad === "Pudahuel"),
+  ].filter(Boolean);
+  const showSantiagoBlock = zona === "Todas" || zona === "Santiago";
 
   // Indicador pronóstico
   const statusColor = { idle:"#94A3B8", loading:"#F59E0B", ok:"#22C55E", error:"#EF4444" }[pronosticoStatus];
   const statusLabel = { idle:"—", loading:"Actualizando pronóstico…", ok:`Pronóstico · ${lastUpdate.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"})}`, error:"Sin pronóstico (datos base)" }[pronosticoStatus];
 
   return (
-    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Geist','Segoe UI',sans-serif", color:C.text }}>
+    <div style={{ minHeight:"100vh", background: isMobile ? "#0B1220" : C.bg, fontFamily:"'Geist','Segoe UI',sans-serif", color:C.text }}>
       <GoogleFonts />
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -513,7 +782,7 @@ export default function App() {
 
       {/* ── Tab: Condición actual ───────────────────────────────────────────── */}
       {tab === "condicion" && (
-        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth:1300, margin:"0 auto" }}>
+        <main style={{ padding: isMobile ? "12px 12px" : "22px 28px", maxWidth:1480, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
 
           {/* Toolbar */}
           <div style={{ marginBottom: isMobile ? 12 : 18 }}>
@@ -555,20 +824,120 @@ export default function App() {
             </div>
           )}
 
+          {showSantiagoBlock && (
+            <section style={{ marginBottom:18 }}>
+              <div style={{ fontSize:9.5, fontWeight:600, color:C.muted, textTransform:"uppercase", letterSpacing:".1em", padding:"0 18px", marginBottom:6 }}>
+                Santiago
+              </div>
+              <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "14px" : "18px", boxShadow:"0 1px 6px rgba(0,0,0,0.04)" }}>
+                <div style={{ display:"grid", gridTemplateColumns:isMobile ? "1fr" : "repeat(2,1fr)", gap:10, marginBottom:16 }}>
+                  {santiagoRows.map((d) => {
+                    const sup = d.def_sup !== null && d.def_sup !== undefined && d.def_sup >= 0;
+
+                    return (
+                      <div key={d.ciudad} style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:13, padding:"14px 16px" }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:12 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <Icon cat={d.categoria} size={28}/>
+                            <div>
+                              <div style={{ fontSize:13, fontWeight:600, letterSpacing:"-.15px" }}>{stationName(d)}</div>
+                              <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>Estación Santiago</div>
+                            </div>
+                          </div>
+
+                          <div style={{ textAlign:"right" }}>
+                            <div style={{ ...mono, fontSize:22, fontWeight:600, color:C.text }}>{fmtT(d.tact)}</div>
+                            <div style={{ ...mono, fontSize:11, marginTop:2 }}>
+                              <span style={{ color:"#60A5FA" }}>{fmtT(d.tmin)}</span>
+                              <span style={{ color:C.border, margin:"0 4px" }}>/</span>
+                              <span style={{ color:C.orange }}>{fmtT(d.tmax)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, borderTop:`1px solid ${C.border}`, paddingTop:10 }}>
+                          <div>
+                            <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>PP hoy</div>
+                            <div style={{ ...mono, fontSize:12, color: d.pp_dia > 0 ? C.blue : "#475569", marginTop:3 }}>
+                              {d.pp_dia === null || d.pp_dia === undefined ? "—" : `${d.pp_dia} mm`}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>PP año</div>
+                            <div style={{ ...mono, fontSize:12, color:"#475569", marginTop:3 }}>
+                              {d.pp_anio === null || d.pp_anio === undefined ? "—" : `${d.pp_anio} mm`}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>Vs normal</div>
+                            <div style={{ marginTop:3 }}>
+                              {d.def_sup === null || d.def_sup === undefined
+                                ? <span style={{ fontSize:11, color:C.border }}>—</span>
+                                : <span style={{
+                                    display:"inline-flex",
+                                    alignItems:"center",
+                                    gap:3,
+                                    fontSize:11,
+                                    fontWeight:600,
+                                    ...mono,
+                                    color: sup ? C.green : C.red,
+                                    background: sup ? C.greenBg : C.redBg,
+                                    borderRadius:20,
+                                    padding:"2px 8px"
+                                  }}>
+                                    {sup ? "▲" : "▼"} {Math.abs(d.def_sup)}%
+                                  </span>
+                              }
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>Viento máx</div>
+                            <div style={{ ...mono, fontSize:12, color:"#475569", marginTop:3 }}>
+                              {fmtWind(d.viento_max)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>
+                  Pronóstico extendido Santiago · 5 días
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:isMobile ? "repeat(5, minmax(76px, 1fr))" : "repeat(5,1fr)", gap:8, overflowX:isMobile ? "auto" : "visible", paddingBottom:isMobile ? 2 : 0 }}>
+                  {santiagoForecast.slice(0,5).map((d,i)=>(
+                    <div key={`${d.dia || i}-${i}`} style={{ minWidth:isMobile ? 76 : "auto", background:C.bg, borderRadius:12, padding:"11px 8px", border:`1px solid ${C.border}`, textAlign:"center" }}>
+                      <div style={{ fontSize:10, color:C.muted, marginBottom:7 }}>{shortDay(d.dia)}</div>
+                      <div style={{ display:"flex", justifyContent:"center" }}><Icon cat={d.categoria || normalizarCategoria(d.condicion)} size={24}/></div>
+                      <div style={{ fontSize:11, ...mono, marginTop:7 }}>
+                        <span style={{color:"#60A5FA"}}>{fmtT(d.tmin)}</span>
+                        <span style={{color:C.border, margin:"0 3px"}}>/</span>
+                        <span style={{color:C.orange}}>{fmtT(d.tmax)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Encabezados */}
           {!isMobile && (
-            <div style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", padding:"0 18px 8px", gap:8, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px 86px", padding:"0 18px 8px", gap:8, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
               <span>Ciudad</span><span style={{textAlign:"center"}}>Actual</span>
               <span style={{textAlign:"center"}}>Mín</span><span style={{textAlign:"center"}}>Máx</span>
               <span style={{textAlign:"center"}}>PP hoy</span><span style={{textAlign:"center"}}>PP año</span>
               <span style={{textAlign:"center"}}>vs. Normal</span>
+              <span style={{textAlign:"center"}}>Viento máx</span>
             </div>
           )}
           {isMobile && (
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 90px 90px", padding:"0 14px 8px", gap:6, fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".08em" }}>
-              <span>Ciudad</span><span style={{textAlign:"center"}}>Actual</span>
-              <span style={{textAlign:"center"}}>Mín / Máx</span>
-              <span style={{textAlign:"center"}}>vs. Normal</span>
+            <div style={{ padding:"0 14px 10px", fontSize:10, color: isMobile ? "#A8B3C7" : C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:".08em" }}>
+              Ciudades
             </div>
           )}
 
@@ -578,15 +947,15 @@ export default function App() {
             if (!rows.length) return null;
             return (
               <section key={z} style={{ marginBottom:16 }}>
-                <div style={{ fontSize:9.5, fontWeight:600, color:C.muted, textTransform:"uppercase", letterSpacing:".1em", padding:"0 18px", marginBottom:5 }}>Zona {z}</div>
-                <div style={{ background:C.surface, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.03)" }}>
+                <div style={{ fontSize:9.5, fontWeight:600, color: isMobile ? "#A8B3C7" : C.muted, textTransform:"uppercase", letterSpacing:".1em", padding:"0 18px", marginBottom: isMobile ? 10 : 5 }}>Zona {z}</div>
+                <div style={{ background: isMobile ? "transparent" : C.surface, borderRadius:14, border: isMobile ? "none" : `1px solid ${C.border}`, overflow: isMobile ? "visible" : "hidden", boxShadow: isMobile ? "none" : "0 1px 4px rgba(0,0,0,0.03)" }}>
                   {rows.map((d, i) => {
                     const sup = d.def_sup !== null && d.def_sup >= 0;
                     return (
                       <>
                       {/* Desktop row */}
                       {!isMobile && (
-                        <div key={d.ciudad} style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px", alignItems:"center", padding:"11px 18px", gap:8, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none", transition:"background .1s" }}
+                        <div key={d.ciudad} style={{ display:"grid", gridTemplateColumns:"200px 74px 68px 68px 84px 96px 106px 86px", alignItems:"center", padding:"11px 18px", gap:8, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none", transition:"background .1s" }}
                           onMouseEnter={e=>e.currentTarget.style.background="#FAFBFC"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}
                         >
@@ -611,30 +980,64 @@ export default function App() {
                                 </span>
                             }
                           </div>
+                          <div style={{ textAlign:"center", ...mono, fontSize:12, color:"#475569" }}>
+                            {fmtWind(d.viento_max)}
+                          </div>
                         </div>
                       )}
-                      {/* Mobile row */}
+                      {/* Mobile card */}
                       {isMobile && (
-                        <div key={d.ciudad+"m"} style={{ display:"grid", gridTemplateColumns:"1fr 60px 90px 90px", alignItems:"center", padding:"12px 14px", gap:6, borderBottom: i<rows.length-1 ? `1px solid ${C.border}` : "none" }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:9 }}>
-                            <Icon cat={d.categoria} size={24}/>
-                            <span style={{ fontWeight:500, fontSize:13, letterSpacing:"-.15px" }}>{d.ciudad}</span>
+                        <div key={d.ciudad+"m"} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:18, padding:"16px 16px", marginBottom: i<rows.length-1 ? 12 : 0, boxShadow:"0 8px 24px rgba(2,6,23,0.16)" }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:12 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:11, minWidth:0 }}>
+                              <Icon cat={d.categoria} size={30}/>
+                              <div style={{ minWidth:0 }}>
+                                <div style={{ fontWeight:600, fontSize:16, letterSpacing:"-.25px", color:C.text, lineHeight:1.15 }}>{d.ciudad}</div>
+                                <div style={{ fontSize:11, color:C.muted, marginTop:4, lineHeight:1.25, overflow:"hidden", textOverflow:"ellipsis", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
+                                  {d.condicion || "—"}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ textAlign:"right", flexShrink:0 }}>
+                              <div style={{ ...mono, fontSize:24, fontWeight:600, color:C.text, letterSpacing:"-.5px" }}>
+                                {d.tact !== null ? `${d.tact}°` : <span style={{ fontSize:13, color:C.border }}>—</span>}
+                              </div>
+                              <div style={{ ...mono, fontSize:12, marginTop:3 }}>
+                                <span style={{ color:"#60A5FA" }}>{fmtT(d.tmin)}</span>
+                                <span style={{ color:C.border, margin:"0 4px" }}>/</span>
+                                <span style={{ color:C.orange }}>{fmtT(d.tmax)}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ textAlign:"center", ...mono, fontSize:15, fontWeight:600, color:C.text }}>
-                            {d.tact !== null ? `${d.tact}°` : <span style={{ fontSize:11, color:C.border }}>—</span>}
-                          </div>
-                          <div style={{ textAlign:"center", ...mono, fontSize:12 }}>
-                            <span style={{ color:"#60A5FA" }}>{fmtT(d.tmin)}</span>
-                            <span style={{ color:C.border, margin:"0 3px" }}>/</span>
-                            <span style={{ color:C.orange }}>{fmtT(d.tmax)}</span>
-                          </div>
-                          <div style={{ textAlign:"center" }}>
-                            {d.def_sup === null
-                              ? <span style={{ fontSize:11, color:C.border }}>—</span>
-                              : <span style={{ display:"inline-flex", alignItems:"center", gap:2, fontSize:11, fontWeight:600, ...mono, color: sup?C.green:C.red, background: sup?C.greenBg:C.redBg, borderRadius:20, padding:"2px 7px" }}>
-                                  {sup?"▲":"▼"} {Math.abs(d.def_sup)}%
-                                </span>
-                            }
+
+                          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, borderTop:`1px solid ${C.border}`, paddingTop:11 }}>
+                            <div>
+                              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em", marginBottom:5 }}>PP hoy</div>
+                              <div style={{ ...mono, fontSize:12, color: d.pp_dia > 0 ? C.blue : "#475569" }}>
+                                {d.pp_dia === null ? "—" : d.pp_dia > 0 ? `${d.pp_dia} mm` : "0 mm"}
+                              </div>
+                            </div>
+
+                            <div>
+                              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em", marginBottom:5 }}>PP año</div>
+                              <div style={{ ...mono, fontSize:12, color:"#475569" }}>{fmtN(d.pp_anio," mm")}</div>
+                            </div>
+
+                            <div>
+                              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em", marginBottom:5 }}>Vs normal</div>
+                              {d.def_sup === null
+                                ? <span style={{ fontSize:12, color:C.border }}>—</span>
+                                : <span style={{ display:"inline-flex", alignItems:"center", gap:3, fontSize:11, fontWeight:600, ...mono, color: sup?C.green:C.red, background: sup?C.greenBg:C.redBg, borderRadius:20, padding:"2px 8px", whiteSpace:"nowrap" }}>
+                                    {sup?"▲":"▼"} {Math.abs(d.def_sup)}%
+                                  </span>
+                              }
+                            </div>
+
+                            <div>
+                              <div style={{ fontSize:9, color:C.muted, textTransform:"uppercase", letterSpacing:".06em", marginBottom:5 }}>Viento máx</div>
+                              <div style={{ ...mono, fontSize:12, color:"#475569", whiteSpace:"nowrap" }}>{fmtWind(d.viento_max)}</div>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -646,47 +1049,163 @@ export default function App() {
             );
           })}
 
-          <div style={{ fontSize:10, color:"#C0C8D4", textAlign:"right", marginTop:6 }}>
-            Condición/pronóstico: MeteoChile pronostico.js · Temperatura: EMA · PP: Boletín DMC · Normales 1991–2020
+          <div style={{ fontSize:10, color: isMobile ? "#64748B" : "#C0C8D4", textAlign:"right", marginTop:6 }}>
+            Condición/pronóstico: MeteoChile pronostico.js · Temperatura/viento: EMA · PP: Boletín DMC · Normales 1991–2020
           </div>
         </main>
       )}
 
       {/* ── Tab: Generar pronóstico ─────────────────────────────────────────── */}
       {tab === "pronostico" && (
-        <main style={{ padding:"40px 28px", maxWidth:660, margin:"0 auto" }}>
-          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:14 }}>Contenido del archivo</div>
-            <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico por zona · {data.length} ciudades</div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:22 }}>
-              {ZONAS.map(z=>(
-                <div key={z} style={{ background:C.bg, borderRadius:10, padding:"10px 14px", border:`1px solid ${C.border}` }}>
-                  <div style={{ fontSize:9.5, color:C.muted, textTransform:"uppercase", letterSpacing:".07em" }}>Zona {z}</div>
-                  <div style={{ fontSize:20, fontWeight:600, color:C.accent, marginTop:2 }}>{data.filter(d=>d.zona===z).length}</div>
-                  <div style={{ fontSize:10, color:C.muted }}>ciudades</div>
-                </div>
-              ))}
+        <main style={{ padding: isMobile ? "20px 12px" : "40px 28px", maxWidth:1040, margin:"0 auto", boxSizing:"border-box" }}>
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "18px 16px" : "24px 28px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:isMobile ? "flex-start" : "center", justifyContent:"space-between", gap:12, flexDirection:isMobile ? "column" : "row" }}>
+              <div>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:6 }}>Editor meteorológico</div>
+                <h1 style={{ fontSize:isMobile ? 20 : 26, fontWeight:600, letterSpacing:"-.6px", color:C.text, marginBottom:6 }}>Generar pronóstico</h1>
+                <p style={{ fontSize:12, color:C.muted, lineHeight:1.5 }}>Edita condición, mínima, máxima y observaciones antes de exportar el Excel operacional.</p>
+              </div>
+              <button onClick={handleAutoUpdate} disabled={updating} style={{ width:isMobile ? "100%" : "auto", padding:"10px 14px", borderRadius:10, border:`1px solid ${C.border}`, background:updating ? "#F8FAFC" : C.surface, color:updating ? C.muted : C.accent, cursor:updating ? "wait" : "pointer", fontSize:12, fontWeight:600, fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ animation: updating ? "spin 1s linear infinite" : "none" }}><path d="M21 12a9 9 0 1 1-2.64-6.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M21 4v6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                {updating ? "Actualizando…" : "Actualizar datos"}
+              </button>
             </div>
-            <div style={{ fontSize:12, fontWeight:600, color:"#374151", marginBottom:10 }}>Pronóstico extendido Santiago · 5 días</div>
-            <div style={{ display:"flex", gap:7 }}>
-              {SANTIAGO_5.map((d,i)=>(
-                <div key={i} style={{ flex:1, background:C.bg, borderRadius:10, padding:"10px 8px", border:`1px solid ${C.border}`, textAlign:"center" }}>
-                  <div style={{ fontSize:9.5, color:C.muted, marginBottom:6 }}>{d.dia.split(" ")[0]}</div>
-                  <div style={{ display:"flex", justifyContent:"center" }}><Icon cat={d.categoria} size={22}/></div>
-                  <div style={{ fontSize:11, ...mono, marginTop:5 }}>
-                    <span style={{color:"#60A5FA"}}>{d.tmin}°</span>
-                    <span style={{color:C.border, margin:"0 2px"}}>/</span>
-                    <span style={{color:C.orange}}>{d.tmax}°</span>
-                  </div>
-                </div>
-              ))}
+            {updateError && <div style={{ marginTop:12, padding:"10px 12px", borderRadius:10, background:C.redBg, color:C.red, fontSize:12, fontWeight:500 }}>{updateError}</div>}
+          </div>
+
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "16px 12px" : "20px 22px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:12, marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:4 }}>Bloque 1</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.text }}>Ciudades fijas</div>
+              </div>
+              <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>{fixedEditableRows.length}/19</div>
+            </div>
+            <div style={{ overflowX:"auto", border:`1px solid ${C.border}`, borderRadius:12 }}>
+              <table style={{ width:"100%", minWidth:860, borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ background:C.bg }}>
+                    {["Ciudad", "Condición", "Mínima", "Máxima", "Observaciones"].map(h => <th key={h} style={{ padding:"9px 10px", borderBottom:`1px solid ${C.border}`, textAlign:h === "Observaciones" ? "left" : "center", fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {fixedEditableRows.map((row, i) => (
+                    <tr key={row.ciudad}>
+                      <td style={{ padding:"8px 10px", borderBottom:`1px solid ${C.border}`, fontWeight:600, color:C.text, textAlign:"center" }}>{row.ciudad}</td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}>
+                        <select value={row.condicion} onChange={e=>updateFixedEditableRow(i, "condicion", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:11, background:"#fff", color:C.text }}>
+                          {CONDITION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmin} onChange={e=>updateFixedEditableRow(i, "tmin", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmax} onChange={e=>updateFixedEditableRow(i, "tmax", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.observaciones} onChange={e=>updateFixedEditableRow(i, "observaciones", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:12 }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"18px 28px", marginBottom:22, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:10 }}>Columnas incluidas</div>
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "16px 12px" : "20px 22px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:12, marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:4 }}>Bloque 2</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.text }}>Pronóstico extendido Santiago Centro · 5 días</div>
+              </div>
+              <div style={{ fontSize:11, color:C.muted, fontWeight:600 }}>{santiagoEditableRows.length} días</div>
+            </div>
+            <div style={{ overflowX:"auto", border:`1px solid ${C.border}`, borderRadius:12 }}>
+              <table style={{ width:"100%", minWidth:860, borderCollapse:"collapse", fontSize:12 }}>
+                <thead>
+                  <tr style={{ background:C.bg }}>
+                    {["Día", "Condición", "Mínima", "Máxima", "Observaciones"].map(h => <th key={h} style={{ padding:"9px 10px", borderBottom:`1px solid ${C.border}`, textAlign:h === "Observaciones" ? "left" : "center", fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {santiagoEditableRows.map((row, i) => (
+                    <tr key={`${row.dia}-${i}`}>
+                      <td style={{ padding:"8px 10px", borderBottom:`1px solid ${C.border}`, fontWeight:600, color:C.text, textAlign:"center" }}>{row.dia}</td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}>
+                        <select value={row.condicion} onChange={e=>updateSantiagoEditableRow(i, "condicion", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:11, background:"#fff", color:C.text }}>
+                          {CONDITION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmin} onChange={e=>updateSantiagoEditableRow(i, "tmin", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmax} onChange={e=>updateSantiagoEditableRow(i, "tmax", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                      <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.observaciones} onChange={e=>updateSantiagoEditableRow(i, "observaciones", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:12 }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:isMobile ? "16px 12px" : "20px 22px", marginBottom:18, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:10 }}>
+              <div>
+                <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:4 }}>Bloque 3</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.text }}>5 ciudades extra</div>
+              </div>
+              <div style={{ fontSize:11, color:selectedExtra.length >= 5 ? C.green : C.muted, fontWeight:600 }}>{selectedExtra.length}/5</div>
+            </div>
+            <div style={{ position:"relative", marginBottom:12 }}>
+              <input
+                value={extraSearch}
+                onChange={e=>setExtraSearch(e.target.value)}
+                placeholder={extraOptions.length ? "Escribe una ciudad…" : "Actualiza primero para cargar las ciudades…"}
+                disabled={selectedExtra.length >= 5}
+                style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontFamily:"inherit", fontSize:12, color:C.text, outline:"none", background:selectedExtra.length >= 5 ? "#F8FAFC" : "#fff" }}
+              />
+              {extraSearch && extraSuggestions.length > 0 && selectedExtra.length < 5 && (
+                <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, right:0, background:C.surface, border:`1px solid ${C.border}`, borderRadius:10, overflow:"hidden", boxShadow:"0 8px 22px rgba(15,23,42,.10)", zIndex:30 }}>
+                  {extraSuggestions.map(city=>(
+                    <button key={city.indice || city.ciudad} onClick={()=>addExtraCity(city)} style={{ width:"100%", border:"none", background:"transparent", padding:"10px 12px", textAlign:"left", cursor:"pointer", fontFamily:"inherit", borderBottom:`1px solid ${C.border}` }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:C.text }}>{city.ciudad}</div>
+                      <div style={{ fontSize:10, color:C.muted, marginTop:2 }}>{city.condicion || city.categoria || "Pronóstico MeteoChile"} · {fmtT(city.tmin)} / {fmtT(city.tmax)}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedExtra.length > 0 ? (
+              <div style={{ overflowX:"auto", border:`1px solid ${C.border}`, borderRadius:12 }}>
+                <table style={{ width:"100%", minWidth:900, borderCollapse:"collapse", fontSize:12 }}>
+                  <thead>
+                    <tr style={{ background:C.bg }}>
+                      {["Ciudad", "Condición", "Mínima", "Máxima", "Observaciones", ""].map(h => <th key={h || "remove"} style={{ padding:"9px 10px", borderBottom:`1px solid ${C.border}`, textAlign:h === "Observaciones" ? "left" : "center", fontSize:10, color:C.muted, textTransform:"uppercase", letterSpacing:".06em" }}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedExtra.map((row, i) => (
+                      <tr key={row.indice || row.ciudad}>
+                        <td style={{ padding:"8px 10px", borderBottom:`1px solid ${C.border}`, fontWeight:600, color:C.text, textAlign:"center" }}>{row.ciudad}</td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}>
+                          <select value={row.condicion} onChange={e=>updateExtraEditableRow(i, "condicion", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:11, background:"#fff", color:C.text }}>
+                            {CONDITION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmin} onChange={e=>updateExtraEditableRow(i, "tmin", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.tmax} onChange={e=>updateExtraEditableRow(i, "tmax", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", textAlign:"center", ...mono, fontSize:12 }} /></td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}` }}><input value={row.observaciones} onChange={e=>updateExtraEditableRow(i, "observaciones", e.target.value)} style={{ width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 8px", fontFamily:"inherit", fontSize:12 }} /></td>
+                        <td style={{ padding:"7px", borderBottom:`1px solid ${C.border}`, textAlign:"center" }}><button onClick={()=>removeExtraCity(row)} style={{ border:"none", background:"transparent", color:C.muted, cursor:"pointer", fontSize:18, lineHeight:1 }}>×</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ background:C.bg, border:`1px dashed ${C.border}`, borderRadius:10, padding:"14px 12px", fontSize:11, color:C.muted, textAlign:"center" }}>
+                Las ciudades extra aparecerán al final del Excel. Usa el buscador para agregarlas.
+              </div>
+            )}
+          </div>
+
+          <div style={{ background:C.surface, borderRadius:16, border:`1px solid ${C.border}`, padding:"18px 22px", marginBottom:22, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ fontSize:10, color:C.muted, fontWeight:500, textTransform:"uppercase", letterSpacing:".09em", marginBottom:10 }}>Excel editable</div>
             <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-              {["Zona","Ciudad","Mínima (°C)","Máxima (°C)","Condición","Categoría"].map(c=>(
+              {["3 secciones", "CIUDAD / SANTIAGO / CIUDADES", "CONDICIÓN", "MIN", "MAX", "OBSERVACIONES"].map(c=>(
                 <span key={c} style={{ fontSize:11, fontWeight:500, color:"#374151", background:C.bg, borderRadius:6, padding:"3px 11px", border:`1px solid ${C.border}` }}>{c}</span>
               ))}
             </div>
@@ -712,7 +1231,7 @@ export default function App() {
             </div>
           )}
           <p style={{ textAlign:"center", fontSize:11, color:C.muted, marginTop:14 }}>
-            {data.length} ciudades · pronóstico extendido Santiago 5 días · formato .xlsx
+            {fixedEditableRows.length} ciudades fijas · Santiago {santiagoEditableRows.length} días · {selectedExtra.length} ciudades extra · formato .xlsx
           </p>
         </main>
       )}
